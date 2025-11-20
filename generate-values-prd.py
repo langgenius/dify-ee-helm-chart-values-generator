@@ -1165,6 +1165,57 @@ class ValuesGenerator:
                 self.values['enterprise']['licenseServer'] = "https://licenses.dify.ai/server"
                 print_info(f"License 服务器 URL: {self.values['enterprise']['licenseServer']}")
         
+        # Plugin Connector 镜像仓库配置
+        print_section("Plugin Connector 镜像仓库配置")
+        print_info("配置插件连接器的镜像仓库设置")
+        
+        if prompt_yes_no("是否配置 Plugin Connector 镜像仓库?", default=False):
+            # 确保 plugin_connector 配置存在
+            if 'plugin_connector' not in self.values:
+                self.values['plugin_connector'] = {}
+            
+            # insecureImageRepo: 如果镜像仓库不使用 https 协议，设置为 true
+            insecure_repo = prompt_yes_no(
+                "镜像仓库是否不使用 HTTPS 协议? (如果使用 http:// 或私有仓库需要认证，选择 yes)",
+                default=self.values.get('plugin_connector', {}).get('insecureImageRepo', False)
+            )
+            self.values['plugin_connector']['insecureImageRepo'] = insecure_repo
+            
+            # imageRepoSecret: 镜像仓库的 Secret 名称
+            image_repo_secret = prompt(
+                "镜像仓库 Secret 名称",
+                default=self.values.get('plugin_connector', {}).get('imageRepoSecret', 'image-repo-secret'),
+                required=False
+            )
+            self.values['plugin_connector']['imageRepoSecret'] = image_repo_secret if image_repo_secret else "image-repo-secret"
+            
+            # imageRepoPrefix: 镜像仓库前缀
+            print_info("镜像仓库前缀示例: docker.io/your-image-repo-prefix 或 registry.example.com/namespace")
+            image_repo_prefix = prompt(
+                "镜像仓库前缀 (Image Repo Prefix)",
+                default=self.values.get('plugin_connector', {}).get('imageRepoPrefix', 'docker.io/your-image-repo-prefix'),
+                required=False
+            )
+            self.values['plugin_connector']['imageRepoPrefix'] = image_repo_prefix if image_repo_prefix else "docker.io/your-image-repo-prefix"
+            
+            # imageRepoType: docker / ecr
+            image_repo_type = prompt_choice(
+                "镜像仓库类型",
+                ["docker", "ecr"],
+                default=self.values.get('plugin_connector', {}).get('imageRepoType', 'docker')
+            )
+            self.values['plugin_connector']['imageRepoType'] = image_repo_type
+            
+            # 如果是 ECR，需要配置区域
+            if image_repo_type == "ecr":
+                ecr_region = prompt(
+                    "ECR 区域 (ECR Region)",
+                    default=self.values.get('plugin_connector', {}).get('ecrRegion', 'us-east-1'),
+                    required=False
+                )
+                self.values['plugin_connector']['ecrRegion'] = ecr_region if ecr_region else "us-east-1"
+                print_info(f"ECR 区域已设置为: {self.values['plugin_connector']['ecrRegion']}")
+        
         print_section("服务启用状态")
         print_info("可以跳过此部分使用默认值，或根据需要调整")
         
