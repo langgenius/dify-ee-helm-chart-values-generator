@@ -43,3 +43,5 @@ email-server.txt
 *.tmp
 *.bak
 values-prd.yaml
+dify/*
+dify-*.tgz

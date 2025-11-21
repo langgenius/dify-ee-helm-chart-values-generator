@@ -153,37 +153,36 @@ class ValuesGenerator:
         self.source_file = source_file
         self.values = {}
         self.yaml_data = None  # ruamel.yaml 的数据对象（保留注释和格式）
+        self.yaml_loader = None  # ruamel.yaml 加载器实例
         self.load_template()
     
     def load_template(self):
         """加载模板文件"""
         try:
-            # 尝试使用 ruamel.yaml（推荐方式）
-            try:
-                from ruamel.yaml import YAML
+            # 必须使用 ruamel.yaml
+            from ruamel.yaml import YAML
+            
+            self.yaml_loader = YAML()
+            self.yaml_loader.preserve_quotes = True
+            self.yaml_loader.width = 120
+            self.yaml_loader.indent(mapping=2, sequence=4)
+            self.yaml_loader.default_flow_style = False
+            self.yaml_loader.default_style = None  # 保持原始样式
+            
+            # 读取原始文件（保留注释和格式）
+            with open(self.source_file, 'r', encoding='utf-8') as f:
+                self.yaml_data = self.yaml_loader.load(f)
+            
+            # 同时加载为标准字典用于配置逻辑
+            with open(self.source_file, 'r', encoding='utf-8') as f:
+                self.values = yaml.safe_load(f)
+            
+            print_success(f"已加载模板文件: {self.source_file} (使用 ruamel.yaml，保留注释和格式)")
                 
-                yaml_loader = YAML()
-                yaml_loader.preserve_quotes = True
-                yaml_loader.width = 120
-                yaml_loader.indent(mapping=2, sequence=4, offset=2)
-                
-                # 读取原始文件（保留注释和格式）
-                with open(self.source_file, 'r', encoding='utf-8') as f:
-                    self.yaml_data = yaml_loader.load(f)
-                
-                # 同时加载为标准字典用于配置逻辑
-                with open(self.source_file, 'r', encoding='utf-8') as f:
-                    self.values = yaml.safe_load(f)
-                
-                print_success(f"已加载模板文件: {self.source_file} (使用 ruamel.yaml，保留注释和格式)")
-                
-            except ImportError:
-                # 回退到标准 yaml
-                with open(self.source_file, 'r', encoding='utf-8') as f:
-                    self.values = yaml.safe_load(f)
-                print_success(f"已加载模板文件: {self.source_file}")
-                print_warning("ruamel.yaml 未安装，建议安装以获得更好的格式保留: pip install ruamel.yaml")
-                
+        except ImportError:
+            print_error("ruamel.yaml 未安装！")
+            print_error("请安装: pip install ruamel.yaml")
+            sys.exit(1)
         except Exception as e:
             print_error(f"加载模板文件失败: {e}")
             sys.exit(1)
@@ -222,43 +221,47 @@ class ValuesGenerator:
     
     def save(self, output_file: str):
         """
-        保存到文件 - 优先使用 ruamel.yaml 保留注释和格式，否则使用标准 yaml
+        保存到文件 - 使用 ruamel.yaml 保留注释和格式
         """
         try:
-            # 尝试使用 ruamel.yaml（推荐方式）
-            try:
-                from ruamel.yaml import YAML
-                
+            # 必须使用 ruamel.yaml
+            from ruamel.yaml import YAML
+            
+            # 如果已有 yaml_loader，使用它；否则创建新的
+            if self.yaml_loader is None:
                 yaml_loader = YAML()
                 yaml_loader.preserve_quotes = True
                 yaml_loader.width = 120
-                yaml_loader.indent(mapping=2, sequence=4, offset=2)
+                yaml_loader.indent(mapping=2, sequence=4)
                 yaml_loader.default_flow_style = False
+                yaml_loader.default_style = None  # 保持原始样式
                 
                 # 重新加载原始文件（保留注释和格式）
                 with open(self.source_file, 'r', encoding='utf-8') as f:
                     data = yaml_loader.load(f)
+            else:
+                # 使用已加载的数据，或重新加载以确保最新
+                if self.yaml_data is not None:
+                    data = self.yaml_data
+                else:
+                    with open(self.source_file, 'r', encoding='utf-8') as f:
+                        data = self.yaml_loader.load(f)
+                yaml_loader = self.yaml_loader
+            
+            # 递归更新值（将 self.values 的更改应用到 data）
+            self._update_dict_recursive(data, self.values)
+            
+            # 保存
+            with open(output_file, 'w', encoding='utf-8') as f:
+                yaml_loader.dump(data, f)
+            
+            print_success(f"配置已保存到: {output_file}")
+            print_info("✓ 已保留原始格式、注释和引号（使用 ruamel.yaml）")
                 
-                # 递归更新值（将 self.values 的更改应用到 data）
-                self._update_dict_recursive(data, self.values)
-                
-                # 保存
-                with open(output_file, 'w', encoding='utf-8') as f:
-                    yaml_loader.dump(data, f)
-                
-                print_success(f"配置已保存到: {output_file}")
-                print_info("✓ 已保留原始格式、注释和引号（使用 ruamel.yaml）")
-                
-            except ImportError:
-                # 回退到标准 yaml（会丢失注释和格式）
-                print_warning("ruamel.yaml 未安装，使用标准 yaml 库")
-                print_info("建议安装以获得更好的格式保留: pip install ruamel.yaml")
-                self._save_with_standard_yaml(output_file)
-            except Exception as e:
-                print_warning(f"使用 ruamel.yaml 保存失败: {e}")
-                print_info("回退到标准 yaml 库")
-                self._save_with_standard_yaml(output_file)
-                
+        except ImportError:
+            print_error("ruamel.yaml 未安装！")
+            print_error("请安装: pip install ruamel.yaml")
+            sys.exit(1)
         except Exception as e:
             print_error(f"保存文件失败: {e}")
             import traceback
@@ -267,33 +270,66 @@ class ValuesGenerator:
     
     def _update_dict_recursive(self, target: dict, source: dict):
         """递归更新字典，保留 ruamel.yaml 的格式和注释"""
+        # 必须使用 ruamel.yaml
+        from ruamel.yaml.scalarstring import ScalarString, DoubleQuotedScalarString, SingleQuotedScalarString
+        from ruamel.yaml.comments import CommentedMap, CommentedSeq
+        
         for key, value in source.items():
             if key in target:
                 if isinstance(value, dict) and isinstance(target[key], dict):
                     self._update_dict_recursive(target[key], value)
+                elif isinstance(value, list) and isinstance(target[key], list):
+                    # 处理列表 - 只在值真正改变时更新
+                    if value != target[key]:
+                        target[key] = value
                 else:
-                    target[key] = value
-    
-    def _save_with_standard_yaml(self, output_file: str):
-        """使用标准 yaml 库保存（会丢失注释和格式）"""
-        print_warning("使用标准 yaml 库，可能丢失注释和格式")
-        print_info("建议安装 ruamel.yaml: pip install ruamel.yaml")
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            yaml.dump(self.values, f, default_flow_style=False, 
-                     allow_unicode=True, sort_keys=False, 
-                     width=120, indent=2)
-        
-        print_success(f"配置已保存到: {output_file}")
-    
-    def _update_dict_recursive(self, target: dict, source: dict):
-        """递归更新字典，保留 ruamel.yaml 的格式和注释"""
-        for key, value in source.items():
-            if key in target:
-                if isinstance(value, dict) and isinstance(target[key], dict):
-                    self._update_dict_recursive(target[key], value)
-                else:
-                    target[key] = value
+                    # 获取原始值的实际值（去除 ScalarString 包装）
+                    original_actual_value = target[key]
+                    if isinstance(original_actual_value, ScalarString):
+                        original_actual_value = str(original_actual_value)
+                    
+                    # 只在值真正改变时更新，保留原始格式和注释
+                    if str(value) != str(original_actual_value):
+                        # 更新标量值，保留原始引号格式
+                        original_value = target[key]
+                        new_value = value
+                        
+                        # 检查原始值是否有引号格式
+                        if isinstance(original_value, DoubleQuotedScalarString):
+                            # 原始值有双引号，新值也应该有双引号
+                            new_value = DoubleQuotedScalarString(str(value))
+                        elif isinstance(original_value, SingleQuotedScalarString):
+                            # 原始值有单引号，新值也应该有单引号
+                            new_value = SingleQuotedScalarString(str(value))
+                        elif isinstance(original_value, ScalarString):
+                            # 原始值是其他类型的 ScalarString，保持格式
+                            new_value = type(original_value)(str(value))
+                        elif isinstance(value, str) and isinstance(original_value, str):
+                            # 原始值是普通字符串，新值也是字符串
+                            # 如果新值包含特殊字符，使用双引号以保持格式一致性
+                            needs_quotes = (
+                                ':' in value or 
+                                '/' in value or 
+                                ' ' in value or
+                                value.startswith('*') or
+                                value.startswith('#') or
+                                value == '' or
+                                value.startswith('http://') or
+                                value.startswith('https://') or
+                                value.endswith('.local') or
+                                value.endswith('.ai') or
+                                value.endswith('.com') or
+                                value.endswith('.tech') or
+                                '+' in value or  # base64 字符串通常包含 +
+                                '=' in value     # base64 字符串通常包含 =
+                            )
+                            
+                            if needs_quotes:
+                                new_value = DoubleQuotedScalarString(value)
+                            # 否则保持普通字符串格式（直接赋值，ruamel.yaml 会自动处理）
+                        
+                        target[key] = new_value
+                    # 如果值没有改变，不更新，保留原始的格式、注释和引号
     
     def _save_with_text_replacement(self, output_file: str):
         """使用文本替换方式保存，保留注释和格式"""
