@@ -29,6 +29,9 @@ Thumbs.db
 values-test*.yaml
 *.log
 
+# Test files
+test_*.py
+
 # Generated configuration files (may contain sensitive data)
 values-prd.yaml
 
