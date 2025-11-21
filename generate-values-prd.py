@@ -853,65 +853,177 @@ class ValuesGenerator:
                 # AWS S3 不需要内置 MinIO
                 self.values['minio']['enabled'] = False
                 print_info("已自动关闭内置 MinIO（使用 AWS S3）")
+                
+                # AWS S3 Endpoint URL (必填，英文)
+                self.values['persistence']['s3']['endpoint'] = prompt(
+                    "S3 Endpoint URL", 
+                    default="", 
+                    required=True
+                )
+                
+                # AWS S3 授权方式选择
+                print_info("")
+                print_info("=" * 60)
+                print_info("AWS S3 授权方式配置")
+                print_info("=" * 60)
+                print_info("Dify 支持两种方式访问 AWS S3：")
+                print_info("  1. IRSA 模式（推荐）：使用 IAM Roles for Service Accounts，更安全")
+                print_info("  2. Access Key 模式：使用 Access Key 和 Secret Key")
+                print_info("=" * 60)
+                print_info("")
+                
+                s3_auth_method = prompt_choice(
+                    "AWS S3 授权方式",
+                    ["IRSA 模式（推荐）", "Access Key 模式"],
+                    default="IRSA 模式（推荐）"
+                )
+                
+                if s3_auth_method == "IRSA 模式（推荐）":
+                    print_info("")
+                    print_info("=" * 60)
+                    print_info("IRSA 模式配置说明")
+                    print_info("=" * 60)
+                    print_info("IRSA (IAM Roles for Service Accounts) 是 AWS 推荐的安全认证方式。")
+                    print_info("详细配置方法请参考：")
+                    print_info("https://enterprise-docs.dify.ai/versions/3-0-x/zh-cn/deployment/cloud-infrastructure/aws-setup#三、irsa-模式配置")
+                    print_info("")
+                    print_info("使用 IRSA 模式时，需要配置 ServiceAccount：")
+                    print_info("  - api.serviceAccountName: 用于 API 服务访问 S3")
+                    print_info("  - worker.serviceAccountName: 用于 Worker 服务访问 S3")
+                    print_info("=" * 60)
+                    print_info("")
+                    
+                    # 设置 useAwsManagedIam = true
+                    self.values['persistence']['s3']['useAwsManagedIam'] = True
+                    print_success("已选择 IRSA 模式，useAwsManagedIam 已设置为 true")
+                    print_info("")
+                    
+                    # 配置 ServiceAccount 名称（可选，如果已创建 ServiceAccount）
+                    print_info("配置 ServiceAccount 名称（用于 IRSA 认证）")
+                    api_sa = prompt(
+                        "API ServiceAccount 名称 (用于 API 服务访问 S3)",
+                        default="",
+                        required=False
+                    )
+                    if api_sa:
+                        self.values['api']['serviceAccountName'] = api_sa
+                    
+                    worker_sa = prompt(
+                        "Worker ServiceAccount 名称 (用于 Worker 服务访问 S3)",
+                        default="",
+                        required=False
+                    )
+                    if worker_sa:
+                        self.values['worker']['serviceAccountName'] = worker_sa
+                    
+                    if not api_sa and not worker_sa:
+                        print_info("提示：如果稍后需要配置 ServiceAccount，请手动编辑 values.yaml")
+                    
+                    print_info("")
+                    print_info("请确保已创建相应的 ServiceAccount 和 IAM Role，并正确配置了 IRSA。")
+                    
+                    # 不配置 accessKey 和 secretKey
+                    if 'accessKey' in self.values['persistence']['s3']:
+                        del self.values['persistence']['s3']['accessKey']
+                    if 'secretKey' in self.values['persistence']['s3']:
+                        del self.values['persistence']['s3']['secretKey']
+                else:  # Access Key 模式
+                    print_info("")
+                    print_info("=" * 60)
+                    print_info("Access Key 模式配置说明")
+                    print_info("=" * 60)
+                    print_info("使用 Access Key 和 Secret Key 访问 AWS S3。")
+                    print_info("请确保 IAM 用户只具备 S3 访问权限。")
+                    print_info("=" * 60)
+                    print_info("")
+                    
+                    # 设置 useAwsManagedIam = false
+                    self.values['persistence']['s3']['useAwsManagedIam'] = False
+                    
+                    # 配置 Access Key 和 Secret Key
+                    self.values['persistence']['s3']['accessKey'] = prompt(
+                        "Access Key", 
+                        default="",
+                        required=True
+                    )
+                    self.values['persistence']['s3']['secretKey'] = prompt(
+                        "Secret Key", 
+                        default="",
+                        required=True
+                    )
+                
+                # 配置区域和 Bucket
+                self.values['persistence']['s3']['region'] = prompt(
+                    "Region", 
+                    default="us-east-1", 
+                    required=False
+                )
+                self.values['persistence']['s3']['bucketName'] = prompt(
+                    "Bucket Name", 
+                    default="your-bucket-name", 
+                    required=True
+                )
             else:
+                # 非 AWS S3 的配置（MinIO、Cloudflare R2等）
                 self.values['persistence']['s3']['useAwsS3'] = False
+                self.values['persistence']['s3']['useAwsManagedIam'] = False
                 print_info(f"配置 {s3_provider} (S3兼容)")
                 # 非 AWS S3 需要内置 MinIO
                 self.values['minio']['enabled'] = True
                 print_info("已自动启用内置 MinIO（useAwsS3=false）")
-            
-            # MinIO 特殊配置说明
-            if s3_provider == "MinIO":
-                print_info("")
-                print_info("=" * 60)
-                print_info("外部 MinIO 配置说明（对象存储）")
-                print_info("=" * 60)
-                print_info("配置您自建的外部 MinIO 服务作为对象存储：")
-                print_info("  • Access Key = MINIO_ROOT_USER（例如: minioadmin）")
-                print_info("  • Secret Key = MINIO_ROOT_PASSWORD（例如: minioadmin123）")
-                print_info("=" * 60)
-                print_info("")
-                default_endpoint = "http://host.docker.internal:9000"
-                default_access_key = "minioadmin"
-                default_secret_key = "minioadmin123"
-            else:
-                default_endpoint = "https://xxx.r2.cloudflarestorage.com" if s3_provider != "AWS S3" else ""
-                default_access_key = ""
-                default_secret_key = ""
-            
-            self.values['persistence']['s3']['endpoint'] = prompt(
-                "S3 端点 URL", 
-                default=default_endpoint, 
-                required=(s3_provider != "AWS S3")
-            )
-            
-            if s3_provider == "MinIO":
-                print_info("")
-                print_info("MinIO 认证信息：")
-                print_info("  • Access Key = MINIO_ROOT_USER")
-                print_info("  • Secret Key = MINIO_ROOT_PASSWORD")
-                print_info("")
-            
-            self.values['persistence']['s3']['accessKey'] = prompt(
-                f"Access Key{' (MinIO: MINIO_ROOT_USER)' if s3_provider == 'MinIO' else ''}", 
-                default=default_access_key,
-                required=True
-            )
-            self.values['persistence']['s3']['secretKey'] = prompt(
-                f"Secret Key{' (MinIO: MINIO_ROOT_PASSWORD)' if s3_provider == 'MinIO' else ''}", 
-                default=default_secret_key,
-                required=True
-            )
-            self.values['persistence']['s3']['region'] = prompt(
-                "区域", 
-                default="us-east-1", 
-                required=False
-            )
-            self.values['persistence']['s3']['bucketName'] = prompt(
-                "Bucket 名称", 
-                default="your-bucket-name", 
-                required=True
-            )
+                
+                # MinIO 特殊配置说明
+                if s3_provider == "MinIO":
+                    print_info("")
+                    print_info("=" * 60)
+                    print_info("外部 MinIO 配置说明（对象存储）")
+                    print_info("=" * 60)
+                    print_info("配置您自建的外部 MinIO 服务作为对象存储：")
+                    print_info("  • Access Key = MINIO_ROOT_USER（例如: minioadmin）")
+                    print_info("  • Secret Key = MINIO_ROOT_PASSWORD（例如: minioadmin123）")
+                    print_info("=" * 60)
+                    print_info("")
+                    default_endpoint = "http://host.docker.internal:9000"
+                    default_access_key = "minioadmin"
+                    default_secret_key = "minioadmin123"
+                else:
+                    default_endpoint = "https://xxx.r2.cloudflarestorage.com"
+                    default_access_key = ""
+                    default_secret_key = ""
+                
+                self.values['persistence']['s3']['endpoint'] = prompt(
+                    "S3 端点 URL", 
+                    default=default_endpoint, 
+                    required=True
+                )
+                
+                if s3_provider == "MinIO":
+                    print_info("")
+                    print_info("MinIO 认证信息：")
+                    print_info("  • Access Key = MINIO_ROOT_USER")
+                    print_info("  • Secret Key = MINIO_ROOT_PASSWORD")
+                    print_info("")
+                
+                self.values['persistence']['s3']['accessKey'] = prompt(
+                    f"Access Key{' (MinIO: MINIO_ROOT_USER)' if s3_provider == 'MinIO' else ''}", 
+                    default=default_access_key,
+                    required=True
+                )
+                self.values['persistence']['s3']['secretKey'] = prompt(
+                    f"Secret Key{' (MinIO: MINIO_ROOT_PASSWORD)' if s3_provider == 'MinIO' else ''}", 
+                    default=default_secret_key,
+                    required=True
+                )
+                self.values['persistence']['s3']['region'] = prompt(
+                    "区域", 
+                    default="us-east-1", 
+                    required=False
+                )
+                self.values['persistence']['s3']['bucketName'] = prompt(
+                    "Bucket 名称", 
+                    default="your-bucket-name", 
+                    required=True
+                )
             
             address_type = prompt(
                 "地址类型 (path-style/virtual-hosted-style, 留空使用默认)", 

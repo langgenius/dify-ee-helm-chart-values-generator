@@ -103,10 +103,16 @@ flowchart TD
     StorageConfig -->|其他| CloudStorage[配置云存储<br/>对应凭证]
     
     S3Provider --> S3Config{提供商?}
-    S3Config -->|AWS S3| S3AWS[配置AWS S3<br/>useAwsS3 = true<br/>endpoint/credentials/bucket<br/>minio.enabled = false]
+    S3Config -->|AWS S3| S3Endpoint[配置S3 Endpoint URL<br/>必填，英文]
     S3Config -->|MinIO/其他| S3Compatible[配置S3兼容<br/>useAwsS3 = false<br/>endpoint/credentials/bucket<br/>minio.enabled = true]
     
-    S3AWS --> End
+    S3Endpoint --> S3Auth{授权方式?}
+    S3Auth -->|IRSA模式<br/>推荐| S3IRSA[配置IRSA模式<br/>useAwsManagedIam = true<br/>配置ServiceAccount<br/>删除accessKey/secretKey<br/>参考AWS文档]
+    S3Auth -->|Access Key模式| S3AK[配置Access Key模式<br/>useAwsManagedIam = false<br/>配置Access Key/Secret Key]
+    
+    S3IRSA --> S3Region[配置Region和Bucket<br/>minio.enabled = false]
+    S3AK --> S3Region
+    S3Region --> End
     S3Compatible --> ConfigMinIO[配置MinIO<br/>自动生成rootPassword<br/>rootUser]
     
     LocalStorage --> MinIOCheck

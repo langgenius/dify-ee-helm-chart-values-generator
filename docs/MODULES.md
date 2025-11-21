@@ -88,6 +88,19 @@
   - **`useAwsS3` 自动设置**：
     - AWS S3 → `useAwsS3 = true`
     - MinIO 或其他兼容S3服务 → `useAwsS3 = false`
+  - **AWS S3 授权方式（二选一）**：
+    - **IRSA 模式（推荐）**：
+      - `useAwsManagedIam = true`
+      - 需要配置 ServiceAccount（`api.serviceAccountName` 和 `worker.serviceAccountName`）
+      - 不配置 `accessKey` 和 `secretKey`
+      - 详细配置参考：[AWS IRSA 模式配置文档](https://enterprise-docs.dify.ai/versions/3-0-x/zh-cn/deployment/cloud-infrastructure/aws-setup#三、irsa-模式配置)
+    - **Access Key 模式（备选）**：
+      - `useAwsManagedIam = false`
+      - 需要配置 `accessKey` 和 `secretKey`
+      - 确保 IAM 用户只具备 S3 访问权限
+  - **AWS S3 Endpoint URL**：
+    - 必填项，使用英文提示
+    - 格式示例：`https://s3.us-west-2.amazonaws.com`
 - 如果使用 `local` 存储，需要配置 StorageClass 和 PVC 大小
 - 如果使用云存储，需要配置对应的访问凭证
 
@@ -235,6 +248,9 @@
 - [ ] RAG联动: `rag.etlType = "Unstructured"` → `unstructured.enabled = true`
 - [ ] 存储: `persistence.type` 与对应的存储配置是否匹配
 - [ ] S3存储: `useAwsS3` 是否正确设置（AWS S3 = true，其他 = false）
+- [ ] AWS S3授权: 
+  - IRSA模式：`useAwsManagedIam = true`，已配置ServiceAccount，无accessKey/secretKey
+  - Access Key模式：`useAwsManagedIam = false`，已配置accessKey和secretKey
 - [ ] MinIO: 如果 `persistence.type != "s3"` 或选择MinIO作为S3提供商，是否配置了MinIO
 - [ ] **TLS联动（重要）**: `global.useTLS` 与 `ingress.tls` 是否一致（避免CORS问题）
 - [ ] Ingress: 如果启用，域名配置是否完整

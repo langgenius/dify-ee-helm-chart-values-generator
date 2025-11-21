@@ -116,6 +116,9 @@ python3 generate-values-prd.py
    - 向量数据库（外部/内置）
    - 存储配置（local/s3/云存储）
      - S3：选择提供商（AWS S3/MinIO/其他），自动设置useAwsS3
+     - AWS S3：支持两种授权方式
+       - IRSA 模式（推荐）：使用 IAM Roles for Service Accounts
+       - Access Key 模式（备选）：使用 Access Key 和 Secret Key
      - 可同时配置MinIO服务
    - MinIO配置（自动生成root密码）
 
@@ -238,6 +241,9 @@ helm upgrade dify-prd . -f values-prd.yaml
 4. **存储配置**:
    - S3存储需要选择提供商，脚本会自动设置 `useAwsS3`
    - AWS S3 → `useAwsS3 = true`
+     - 支持两种授权方式：IRSA 模式（推荐）或 Access Key 模式
+     - IRSA 模式需要配置 ServiceAccount 和 IAM Role
+     - Access Key 模式需要配置 Access Key 和 Secret Key
    - MinIO或其他兼容S3服务 → `useAwsS3 = false`
 
 5. **配置验证**:

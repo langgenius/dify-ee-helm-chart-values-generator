@@ -2,6 +2,31 @@
 
 ## 最新更新 (2024)
 
+### AWS S3 存储配置增强
+
+1. **AWS S3 授权方式选择**
+   - ✅ 支持两种授权方式：
+     - **IRSA 模式（推荐）**：使用 IAM Roles for Service Accounts
+       - 自动设置 `useAwsManagedIam = true`
+       - 可选配置 ServiceAccount（`api.serviceAccountName` 和 `worker.serviceAccountName`）
+       - 自动删除 `accessKey` 和 `secretKey`
+       - 提供详细的 AWS IRSA 配置文档链接
+     - **Access Key 模式（备选）**：使用 Access Key 和 Secret Key
+       - 自动设置 `useAwsManagedIam = false`
+       - 配置 `accessKey` 和 `secretKey`
+       - 提示确保 IAM 用户只具备 S3 访问权限
+
+2. **AWS S3 Endpoint URL 配置**
+   - ✅ Endpoint URL 使用英文提示（"S3 Endpoint URL"）
+   - ✅ 设置为必填项（`required=True`）
+   - ✅ 格式示例：`https://s3.us-west-2.amazonaws.com`
+
+3. **配置流程优化**
+   - ✅ 先配置 Endpoint URL
+   - ✅ 然后选择授权方式（IRSA/Access Key）
+   - ✅ 根据授权方式自动配置相关参数
+   - ✅ 最后配置 Region 和 Bucket Name
+
 ### 插件配置模块新增（模块 5）
 
 1. **独立的插件配置模块**
