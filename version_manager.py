@@ -13,32 +13,33 @@ class VersionManager:
     """Version manager - manages Dify EE configuration modules for different versions"""
 
     # Version configuration: defines modules supported by each version
+    # Uses major version format (3.x, 2.x) to avoid confusion with specific chart versions (e.g., 3.5.6)
     VERSION_CONFIGS = {
-        "3.0": {
-            "name": "Dify Enterprise Edition 3.0",
+        "3.x": {
+            "name": "Dify Enterprise Edition 3.x",
             "modules": [
                 "global",
                 "infrastructure",
                 "networking",
                 "mail",
-                "plugins",  # Version 3.0 supports plugin module
+                "plugins",  # Version 3.x supports plugin module
                 "services"
             ],
             "description": "Full version with plugin support"
         },
-        "2.0": {
-            "name": "Dify Enterprise Edition 2.0",
+        "2.x": {
+            "name": "Dify Enterprise Edition 2.x",
             "modules": [
                 "global",
                 "infrastructure",
                 "networking",
                 "mail",
-                # Version 2.0 does not support plugin module
+                # Version 2.x does not support plugin module
                 "services"
             ],
             "description": "Version without plugin support"
         },
-        # More version configurations can be added here
+        # More version configurations can be added here (e.g., "4.x")
     }
 
     @classmethod
@@ -121,4 +122,47 @@ class VersionManager:
         # This can be implemented based on actual requirements
         # For now, return None to let user manually select
         return None
+
+    @classmethod
+    def map_chart_version_to_ee_version(cls, chart_version: Optional[str]) -> Optional[str]:
+        """
+        Map Helm Chart version to Dify EE version
+
+        Mapping rules:
+        - Chart version 3.x.x -> Dify EE 3.x
+        - Chart version 2.x.x -> Dify EE 2.x
+        - Chart version 1.x.x -> Dify EE 2.x (legacy)
+        - Chart version 4.x.x -> Dify EE 4.x (future)
+        - Unknown or None -> None (requires manual selection)
+
+        Args:
+            chart_version: Helm Chart version string (e.g., "3.5.6", "3.6.0-beta.1")
+
+        Returns:
+            Dify EE version string (e.g., "3.x", "2.x") or None if cannot be determined
+        """
+        if not chart_version:
+            return None
+
+        # Extract major version number
+        try:
+            # Handle versions like "3.5.6", "3.6.0-beta.1", etc.
+            major_version = int(chart_version.split('.')[0])
+
+            # Map major version to EE version (using x format for extensibility)
+            # Future versions (4.x, 5.x, etc.) will automatically map correctly
+            if major_version >= 4:
+                return f"{major_version}.x"
+            elif major_version >= 3:
+                return "3.x"
+            elif major_version >= 2:
+                return "2.x"
+            elif major_version >= 1:
+                # Chart version 1.x maps to EE 2.x (legacy support)
+                return "2.x"
+            else:
+                return None
+        except (ValueError, IndexError):
+            # If version format is unexpected, return None
+            return None
 

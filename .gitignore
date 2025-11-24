@@ -34,6 +34,7 @@ values-test*.yaml
 
 # Generated configuration files (may contain sensitive data)
 values-prd.yaml
+out/
 
 # Values template (should be downloaded from Helm Chart repository)
 values.yaml

@@ -15,7 +15,8 @@ CACHE_DIR = ".cache"
 LOCAL_VALUES_FILE = "values.yaml"
 
 # Output Configuration
-OUTPUT_FILE = "values-prd.yaml"
+OUTPUT_DIR = "out"
+OUTPUT_FILE_PREFIX = "values-prd"
 
 # Timeout Configuration (in seconds)
 DOWNLOAD_TIMEOUT = 10

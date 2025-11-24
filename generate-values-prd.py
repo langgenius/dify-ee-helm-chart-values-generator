@@ -8,7 +8,7 @@ Module structure and relationships:
 2. Infrastructure Module - database, storage, cache (mutually exclusive choices)
 3. Network Module - Ingress configuration
 4. Mail Module - email service configuration
-5. Plugin Module - plugin configuration (3.0+ only)
+5. Plugin Module - plugin configuration (3.x+ only)
 6. Service Module - application service configuration
 """
 
@@ -34,13 +34,13 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Use default settings (auto-download latest version, interactive Dify EE version selection)
+  # Use default settings (auto-download latest version, EE version auto-detected from Chart version)
   python generate-values-prd.py
 
-  # Specify Helm Chart version and Dify EE version
-  python generate-values-prd.py --chart-version 3.6.0 --ee-version 3.0
+  # Specify Helm Chart version (EE version will be auto-detected)
+  python generate-values-prd.py --chart-version 3.6.0
 
-  # Use local values.yaml
+  # Use local values.yaml (EE version will be auto-detected if Chart version can be determined)
   python generate-values-prd.py --local
 
   # Force re-download
@@ -55,13 +55,6 @@ Examples:
         type=str,
         default=None,
         help="Specify Helm Chart version (default: latest)"
-    )
-    parser.add_argument(
-        "--ee-version", "-e",
-        type=str,
-        default=None,
-        choices=VersionManager.get_available_versions(),
-        help=f"Specify Dify EE version (default: interactive selection). Available: {', '.join(VersionManager.get_available_versions())}"
     )
     parser.add_argument(
         "--local", "-l",
@@ -119,6 +112,12 @@ Examples:
             print_info(_t('or_manual_download'))
             sys.exit(1)
         print_info(f"{_t('using_local')}: {source_file}")
+        # When using --local, chart version must be specified
+        if not args.chart_version:
+            print_error(_t('chart_version_required_for_local'))
+            print_info(_t('chart_version_required_help'))
+            sys.exit(1)
+        chart_version = args.chart_version
     else:
         try:
             # If chart version is specified via CLI, don't prompt
@@ -164,21 +163,31 @@ Examples:
         print_error(f"{_t('file_not_found')}: {source_file}")
         sys.exit(1)
 
-    # Select Dify EE version
-    if args.ee_version:
-        ee_version = args.ee_version
-        version_info = VersionManager.get_version_info(ee_version)
-        if version_info:
-            print_info(f"{_t('selected')}: {version_info.get('name', ee_version)}")
-        else:
-            print_error(f"{_t('invalid_version')}: {ee_version}")
-            sys.exit(1)
-    else:
-        # Interactive version selection
-        ee_version = VersionManager.prompt_version_selection()
+    # Auto-detect Dify EE version from Helm Chart version
+    # Helm Chart version determines the EE version automatically
+    if not chart_version:
+        print_error(_t('chart_version_required'))
+        print_info(_t('chart_version_required_help'))
+        sys.exit(1)
+
+    ee_version = VersionManager.map_chart_version_to_ee_version(chart_version)
+    if not ee_version:
+        print_error(f"{_t('cannot_detect_ee_version')}: {chart_version}")
+        print_info(_t('chart_version_required_help'))
+        sys.exit(1)
+
+    version_info = VersionManager.get_version_info(ee_version)
+    if not version_info:
+        print_error(f"{_t('unsupported_chart_version')}: {chart_version} -> {ee_version}")
+        sys.exit(1)
+
+    ee_version_name = version_info.get('name', ee_version)
+    modules = version_info.get('modules', [])
+    print_info(f"{_t('detected_ee_version')}: {ee_version_name}")
+    print_info(f"{_t('will_execute_modules')}: {', '.join(modules)}")
 
     # Generate configuration
-    generator = ValuesGenerator(source_file, version=ee_version)
+    generator = ValuesGenerator(source_file, version=ee_version, chart_version=chart_version)
     generator.generate()
 
 
