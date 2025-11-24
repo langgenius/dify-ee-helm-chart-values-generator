@@ -24,12 +24,15 @@ def get_helm_chart_versions(
     repo_name: Optional[str] = None
 ) -> List[str]:
     """
-    Get all available versions of a Helm Chart from repository index.yaml
+    Get all available versions by directly downloading index.yaml
+    
+    This function is used for displaying version list to users.
+    It directly downloads index.yaml for faster and more reliable access.
 
     Args:
         chart_name: Chart name, defaults to config.HELM_CHART_NAME
         repo_url: Helm Chart repository URL, defaults to config.HELM_REPO_URL
-        repo_name: Repository name, defaults to config.HELM_REPO_NAME
+        repo_name: Repository name, defaults to config.HELM_REPO_NAME (not used, kept for compatibility)
 
     Returns:
         List of available versions (sorted, latest first)
@@ -37,11 +40,59 @@ def get_helm_chart_versions(
     # Use global config defaults if not provided
     chart_name = chart_name or config.HELM_CHART_NAME
     repo_url = repo_url or config.HELM_REPO_URL
-    repo_name = repo_name or config.HELM_REPO_NAME
 
     versions = []
 
-    # Method 1: Try to get versions from Helm command
+    # Directly download index.yaml to get all versions
+    try:
+        index_url = f"{repo_url.rstrip('/')}/index.yaml"
+        print_info(_t('fetching_versions_from_index'))
+        with urllib.request.urlopen(index_url, timeout=config.DOWNLOAD_TIMEOUT) as response:
+            index_data = yaml.safe_load(response.read())
+            if index_data and 'entries' in index_data:
+                chart_entries = index_data['entries'].get(chart_name, [])
+                versions = [entry.get('version', '') for entry in chart_entries if entry.get('version')]
+    except Exception as e:
+        print_warning(f"{_t('failed_to_fetch_versions')}: {e}")
+
+    # Sort versions (semantic versioning, latest first)
+    def version_key(v):
+        try:
+            parts = v.split('.')
+            return tuple(int(p) if p.isdigit() else 0 for p in parts)
+        except:
+            return (0, 0, 0)
+
+    versions = sorted(set(versions), key=version_key, reverse=True)
+    return versions
+
+
+def get_published_version(
+    chart_name: Optional[str] = None,
+    repo_url: Optional[str] = None,
+    repo_name: Optional[str] = None,
+    version: Optional[str] = None
+) -> Optional[str]:
+    """
+    Get published version using Helm command
+    
+    This function is used when downloading values.yaml for a specific version.
+    It uses Helm command to ensure the version is actually published and available.
+
+    Args:
+        chart_name: Chart name, defaults to config.HELM_CHART_NAME
+        repo_url: Helm Chart repository URL, defaults to config.HELM_REPO_URL
+        repo_name: Repository name, defaults to config.HELM_REPO_NAME
+        version: Specific version to check, if None returns latest published version
+
+    Returns:
+        Version string if found, None otherwise
+    """
+    # Use global config defaults if not provided
+    chart_name = chart_name or config.HELM_CHART_NAME
+    repo_url = repo_url or config.HELM_REPO_URL
+    repo_name = repo_name or config.HELM_REPO_NAME
+
     try:
         # Ensure repository is added
         check_repo_cmd = ["helm", "repo", "list", "-o", "json"]
@@ -72,40 +123,27 @@ def get_helm_chart_versions(
                     stderr=subprocess.PIPE
                 )
             except subprocess.CalledProcessError:
-                pass
+                return None
 
         # Get versions using helm search
         versions_cmd = ["helm", "search", "repo", f"{repo_name}/{chart_name}", "--versions", "-o", "json"]
         versions_output = subprocess.check_output(versions_cmd, stderr=subprocess.PIPE).decode()
         versions_data = json.loads(versions_output)
         if versions_data:
-            versions = [item.get("version", "") for item in versions_data if item.get("version")]
+            if version:
+                # Check if specific version exists
+                for item in versions_data:
+                    if item.get("version") == version:
+                        return version
+                return None
+            else:
+                # Return latest version
+                if len(versions_data) > 0:
+                    return versions_data[0].get("version")
     except Exception:
         pass
 
-    # Method 2: Fallback to downloading index.yaml directly
-    if not versions:
-        try:
-            index_url = f"{repo_url.rstrip('/')}/index.yaml"
-            print_info(_t('fetching_versions_from_index'))
-            with urllib.request.urlopen(index_url, timeout=config.DOWNLOAD_TIMEOUT) as response:
-                index_data = yaml.safe_load(response.read())
-                if index_data and 'entries' in index_data:
-                    chart_entries = index_data['entries'].get(chart_name, [])
-                    versions = [entry.get('version', '') for entry in chart_entries if entry.get('version')]
-        except Exception as e:
-            print_warning(f"{_t('failed_to_fetch_versions')}: {e}")
-
-    # Sort versions (semantic versioning, latest first)
-    def version_key(v):
-        try:
-            parts = v.split('.')
-            return tuple(int(p) if p.isdigit() else 0 for p in parts)
-        except:
-            return (0, 0, 0)
-
-    versions = sorted(set(versions), key=version_key, reverse=True)
-    return versions
+    return None
 
 
 def prompt_helm_chart_version(
@@ -321,18 +359,12 @@ def download_values_from_helm_repo(
         if version:
             cache_file = cache_path / f"values-{version}.yaml"
         else:
-            # Get actual version
-            try:
-                versions_cmd = ["helm", "search", "repo", f"{repo_name}/{chart_name}", "--versions", "-o", "json"]
-                versions_output = subprocess.check_output(versions_cmd, stderr=subprocess.PIPE).decode()
-                versions_data = json.loads(versions_output)
-                if versions_data and len(versions_data) > 0:
-                    actual_version = versions_data[0].get("version", "latest")
-                    cache_file = cache_path / f"values-{actual_version}.yaml"
-                    print_info(f"{_t('detected_version')}: {actual_version}")
-                else:
-                    cache_file = cache_path / "values-latest.yaml"
-            except:
+            # Get actual published version using Helm command
+            actual_version = get_published_version(chart_name, repo_url, repo_name)
+            if actual_version:
+                cache_file = cache_path / f"values-{actual_version}.yaml"
+                print_info(f"{_t('detected_version')}: {actual_version}")
+            else:
                 cache_file = cache_path / "values-latest.yaml"
 
         # Save to cache file
