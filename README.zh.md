@@ -35,6 +35,7 @@
 - PyYAML 库
 - `openssl`（用于生成密钥，通常系统已自带）
 - `ruamel.yaml`（推荐）：用于保留 YAML 文件的格式、注释和引号
+- `helm`（可选，但推荐）：用于从 Helm Chart 仓库下载 values.yaml。如果未安装，脚本会尝试从 GitHub 直接下载。
 
 ### 安装依赖
 
@@ -62,9 +63,38 @@ pip install -r requirements.txt
 
 ### 使用方法
 
+**基本使用（自动下载最新版本的 values.yaml）：**
+
 ```bash
 python generate-values-prd.py
 ```
+
+**指定版本：**
+
+```bash
+python generate-values-prd.py --version 3.6.0
+```
+
+**使用本地 values.yaml：**
+
+```bash
+python generate-values-prd.py --local
+```
+
+**强制重新下载：**
+
+```bash
+python generate-values-prd.py --force-download
+```
+
+**命令行选项：**
+
+- `--version, -v`: 指定 Helm Chart 版本（默认：最新版本）
+- `--local, -l`: 使用本地 values.yaml 文件（不下载）
+- `--force-download, -f`: 强制重新下载 values.yaml（忽略缓存）
+- `--repo-url`: 自定义 Helm Chart 仓库 URL
+
+脚本会自动从官方 Dify Helm Chart 仓库下载 `values.yaml`（如果本地不存在）。下载的文件会缓存在 `.cache/` 目录中。
 
 脚本会引导你完成以下配置模块：
 
@@ -82,8 +112,9 @@ python generate-values-prd.py
 ```
 .
 ├── generate-values-prd.py    # 主脚本文件
-├── values.yaml               # 基础配置文件模板
+├── values.yaml               # 基础配置文件模板（自动从 Helm Chart 仓库下载）
 ├── values-prd.yaml          # 生成的生产环境配置（gitignore）
+├── .cache/                  # 缓存目录（存储下载的 values.yaml）
 ├── pyproject.toml           # Python 项目配置
 ├── requirements.txt         # Python 依赖列表
 ├── LICENSE                  # MIT 许可证

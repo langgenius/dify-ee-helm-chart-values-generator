@@ -35,6 +35,7 @@ This project provides a Python script `generate-values-prd.py` that interactivel
 - PyYAML library
 - `openssl` (usually pre-installed on systems)
 - `ruamel.yaml` (recommended): For preserving YAML file format, comments, and quotes
+- `helm` (optional, but recommended): For downloading values.yaml from Helm Chart repository. If not installed, the script will try to download from GitHub directly.
 
 ### Installation
 
@@ -62,9 +63,38 @@ pip install -r requirements.txt
 
 ### Usage
 
+**Basic usage (automatically downloads latest values.yaml):**
+
 ```bash
 python generate-values-prd.py
 ```
+
+**Specify a version:**
+
+```bash
+python generate-values-prd.py --version 3.6.0
+```
+
+**Use local values.yaml:**
+
+```bash
+python generate-values-prd.py --local
+```
+
+**Force re-download:**
+
+```bash
+python generate-values-prd.py --force-download
+```
+
+**Command-line options:**
+
+- `--version, -v`: Specify Helm Chart version (default: latest)
+- `--local, -l`: Use local values.yaml file (don't download)
+- `--force-download, -f`: Force re-download values.yaml (ignore cache)
+- `--repo-url`: Custom Helm Chart repository URL
+
+The script will automatically download `values.yaml` from the official Dify Helm Chart repository if it's not found locally. Downloaded files are cached in `.cache/` directory.
 
 The script will guide you through the following configuration modules:
 

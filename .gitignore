@@ -35,6 +35,13 @@ test_*.py
 # Generated configuration files (may contain sensitive data)
 values-prd.yaml
 
+# Values template (should be downloaded from Helm Chart repository)
+values.yaml
+values-*.yaml
+
+# Cache directory
+.cache/
+
 # Sensitive files
 email-server.txt
 *password*
