@@ -1,4 +1,4 @@
-"""Internationalization (i18n) support for Dify Helm Chart Values Generator"""
+"""Internationalization (i18n) support for Dify EE (Enterprise Edition) Helm Chart Values Generator"""
 
 from .translations import Translations, get_translator, set_language, get_language
 

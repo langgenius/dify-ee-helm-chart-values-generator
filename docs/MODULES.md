@@ -1,4 +1,4 @@
-# Dify Helm Chart Values 配置模块划分与联动关系
+# Dify EE（企业版）Helm Chart Values 配置模块划分与联动关系
 
 ## 模块划分
 

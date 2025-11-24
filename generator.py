@@ -4,6 +4,7 @@ import os
 import sys
 import re
 import yaml
+from pathlib import Path
 from typing import Dict, Any, Optional
 
 from utils import print_success, print_error, print_info, print_header, print_warning, prompt, prompt_yes_no
@@ -17,13 +18,14 @@ _t = get_translator()
 class ValuesGenerator:
     """Values generator"""
 
-    def __init__(self, source_file: str, version: Optional[str] = None):
+    def __init__(self, source_file: str, version: Optional[str] = None, chart_version: Optional[str] = None):
         """Initialize"""
         self.source_file = source_file
         self.values = {}
         self.yaml_data = None  # ruamel.yaml data object (preserves comments and format)
         self.yaml_loader = None  # ruamel.yaml loader instance
-        self.version = version or "3.0"  # Default version
+        self.version = version or "3.x"  # Default version
+        self.chart_version = chart_version  # Helm Chart version
         self.version_modules = VersionManager.get_version_modules(self.version)
         self.load_template()
 
@@ -297,11 +299,27 @@ class ValuesGenerator:
 
         print_header(_t('generator_title'))
         print_info(_t('guide_message'))
-        print_info(f"{_t('target_version')}: {VersionManager.get_version_info(self.version).get('name', self.version)}")
+
+        # Display Helm Chart version if available
+        if self.chart_version:
+            print_info(f"{_t('helm_chart_version')}: {self.chart_version}")
+
+        # Display Dify EE version and modules that will be executed
+        version_info = VersionManager.get_version_info(self.version)
+        if version_info:
+            ee_version_name = version_info.get('name', self.version)
+            modules = version_info.get('modules', [])
+            print_info(f"{_t('target_version')}: {ee_version_name}")
+            print_info(f"{_t('will_execute_modules')}: {', '.join(modules)}")
+        else:
+            print_info(f"{_t('target_version')}: {self.version}")
+            print_info(f"{_t('will_execute_modules')}: {', '.join(self.version_modules)}")
+
         print_info(_t('press_ctrl_c'))
 
         try:
             # Dynamically configure modules based on version
+            # Map module names to their configuration functions
             module_configs = {
                 "global": configure_global,
                 "infrastructure": configure_infrastructure,
@@ -311,21 +329,46 @@ class ValuesGenerator:
                 "services": configure_services,
             }
 
+            # Map module names to function names for display
+            module_function_names = {
+                "global": "configure_global",
+                "infrastructure": "configure_infrastructure",
+                "networking": "configure_networking",
+                "mail": "configure_mail",
+                "plugins": "configure_plugins",
+                "services": "configure_services",
+            }
+
             # Configure each module in order (based on version support)
             for module_name in self.version_modules:
                 if module_name in module_configs:
+                    function_name = module_function_names.get(module_name, f"configure_{module_name}")
+                    print_info(f"{_t('executing_module')}: {module_name} -> {function_name}")
                     module_configs[module_name](self)
                 else:
                     print_warning(f"{_t('module_not_found')} '{module_name}', {_t('skipping')}")
 
-            # Save file
-            output_file = config.OUTPUT_FILE
+            # Generate output filename with version
+            output_dir = Path(config.OUTPUT_DIR)
+            output_dir.mkdir(exist_ok=True)
+
+            if self.chart_version:
+                output_filename = f"{config.OUTPUT_FILE_PREFIX}-{self.chart_version}.yaml"
+            else:
+                output_filename = f"{config.OUTPUT_FILE_PREFIX}.yaml"
+
+            output_file = str(output_dir / output_filename)
+
             if os.path.exists(output_file):
                 overwrite_prompt = f"{output_file} {_t('file_exists_overwrite')}"
                 if not prompt_yes_no(overwrite_prompt, default=False):
-                    output_file = prompt(_t('enter_new_filename'), default=config.OUTPUT_FILE, required=False)
-                    if not output_file:
-                        output_file = config.OUTPUT_FILE
+                    custom_filename = prompt(_t('enter_new_filename'), default=output_filename, required=False)
+                    if custom_filename:
+                        if not custom_filename.endswith('.yaml'):
+                            custom_filename += '.yaml'
+                        output_file = str(output_dir / custom_filename)
+                    else:
+                        output_file = str(output_dir / output_filename)
 
             self.save(output_file)
 

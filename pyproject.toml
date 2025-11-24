@@ -1,7 +1,7 @@
 [project]
 name = "dify-helm-chart-generator"
 version = "1.0.0"
-description = "Dify Helm Chart Values Generator - Interactive script to generate values-prd.yaml"
+description = "Dify EE (Enterprise Edition) Helm Chart Values Generator - Interactive script to generate values-prd.yaml"
 readme = "README-GENERATOR.md"
 requires-python = ">=3.6"
 authors = [

@@ -1,5 +1,25 @@
 # 开发工作流程 (Development Workflow)
 
+## 分支策略
+
+**重要：所有开发工作都在 `dev` 分支进行**
+
+- `main` 分支：稳定版本，只接受来自 `dev` 分支的合并
+- `dev` 分支：开发分支，所有新功能和修复都在此分支开发
+
+### 分支切换
+
+```bash
+# 切换到 dev 分支
+git checkout dev
+
+# 如果 dev 分支不存在，创建并切换
+git checkout -b dev
+
+# 从 main 分支创建 dev 分支（首次创建）
+git checkout -b dev main
+```
+
 ## Git 提交规范
 
 ### 基本原则

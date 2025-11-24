@@ -9,7 +9,7 @@
 - ✅ **自动下载**: 如果本地不存在 `values.yaml`，自动从官方仓库下载
 - ✅ **版本管理**: 支持指定特定版本的 Chart
 - ✅ **缓存机制**: 下载的文件缓存在 `.cache/` 目录，避免重复下载
-- ✅ **多种下载方式**: 优先使用 Helm 命令，如果不可用则从 GitHub 直接下载
+- ✅ **Helm 命令**: 使用 Helm 命令从官方仓库下载（Helm 为必选依赖）
 - ✅ **灵活使用**: 支持使用本地文件或强制重新下载
 
 ## 使用方式
@@ -29,17 +29,17 @@ python generate-values-prd.py
 ### 2. 指定版本
 
 ```bash
-python generate-values-prd.py --version 3.6.0
+python generate-values-prd.py --chart-version 3.5.6
 ```
 
 下载指定版本的 `values.yaml` 并保存到 `.cache/values-3.6.0.yaml`。
 
 ### 3. 使用本地文件
 
-如果你已经手动下载了 `values.yaml`，可以使用 `--local` 参数：
+如果你已经手动下载了 `values.yaml`，可以使用 `--local` 参数（必须同时指定版本）：
 
 ```bash
-python generate-values-prd.py --local
+python generate-values-prd.py --local --chart-version 3.5.6
 ```
 
 ### 4. 强制重新下载
@@ -52,28 +52,23 @@ python generate-values-prd.py --force-download
 
 ## 下载机制
 
-### 方式 1: Helm 命令（优先）
+### Helm 命令（必选）
 
-如果系统安装了 Helm，脚本会：
+脚本需要 Helm 才能正常工作。脚本会：
 
-1. 添加 Dify Helm Chart 仓库：
+1. 检查 Helm 是否已安装，如果未安装会提示安装并退出
+2. 添加 Dify Helm Chart 仓库：
    ```bash
    helm repo add dify-helm https://langgenius.github.io/dify-helm
    helm repo update dify-helm
    ```
 
-2. 使用 `helm show values` 获取 values.yaml：
+3. 使用 `helm show values` 获取 values.yaml：
    ```bash
    helm show values dify-helm/dify --version <version>
    ```
 
-### 方式 2: GitHub 直接下载（备用）
-
-如果 Helm 不可用，脚本会从 GitHub 仓库直接下载：
-
-```
-https://raw.githubusercontent.com/langgenius/dify-helm/main/values.yaml
-```
+**注意**: 如果 Helm 未安装，脚本会显示安装说明并退出，不会尝试其他下载方式。
 
 ## 缓存机制
 
@@ -111,14 +106,14 @@ helm search repo dify-helm/dify --versions
 ### 问题 1: 无法下载 values.yaml
 
 **可能原因：**
+- Helm 未安装（必选依赖）
 - 网络连接问题
-- Helm 未安装或配置错误
-- GitHub 访问受限
+- Helm 配置错误
 
 **解决方案：**
-1. 检查网络连接
-2. 安装 Helm：https://helm.sh/docs/intro/install/
-3. 手动下载 values.yaml 并使用 `--local` 参数
+1. **安装 Helm**（必选）：https://helm.sh/docs/intro/install/
+2. 检查网络连接
+3. 手动下载 values.yaml 并使用 `--local --chart-version <version>` 参数
 
 ### 问题 2: 版本不存在
 
@@ -167,12 +162,11 @@ python generate-values-prd.py --force-download
    └─ 不存在或强制下载 → 继续下载
 
 4. 下载文件
-   ├─ 尝试 Helm 命令
-   │  ├─ 成功 → 保存到缓存
-   │  └─ 失败 → 尝试 GitHub
-   └─ 尝试 GitHub 直接下载
-      ├─ 成功 → 保存到缓存
-      └─ 失败 → 报错退出
+   ├─ 检查 Helm 是否安装
+   │  ├─ 未安装 → 显示安装说明并退出
+   │  └─ 已安装 → 使用 Helm 命令下载
+   │     ├─ 成功 → 保存到缓存
+   │     └─ 失败 → 报错退出
 
 5. 使用下载的文件生成配置
 ```

@@ -31,32 +31,67 @@ def configure_services(generator):
         generator.values['enterprise']['passwordEncryptionKey'] = generate_secret(32)
         print_success(f"{_t('generated')} passwordEncryptionKey: {generator.values['enterprise']['passwordEncryptionKey'][:20]}...")
 
+        # License mode selection (online/offline)
+        # Note: licenseServer URL is not set - users should configure it manually in values.yaml
         license_mode = prompt_choice(
             _t('license_mode'),
             ["online", "offline"],
             default="online"
         )
         generator.values['enterprise']['licenseMode'] = license_mode
-
+        print_info(f"{_t('license_mode')}: {license_mode}")
         if license_mode == "online":
-            # Use default License server URL, don't ask user
-            generator.values['enterprise']['licenseServer'] = "https://licenses.dify.ai/server"
-            print_info(f"{_t('license_server_url')}: {generator.values['enterprise']['licenseServer']}")
+            print_info(_t('license_server_manual_config_note'))
 
-    print_section(_t('service_enablement_status'))
-    print_info(_t('can_skip_use_defaults'))
+    # Configure replica counts for services (using default values from template)
+    # Note: Service enablement is not configurable here (except unstructured which is handled in global_config)
+    print_section(_t('service_replica_config'))
+    print_info(_t('service_replica_config_note'))
 
-    if prompt_yes_no(_t('config_service_enablement'), default=False):
-        services = ['api', 'worker', 'workerBeat', 'web', 'sandbox',
-                   'enterprise', 'enterpriseAudit', 'enterpriseFrontend',
-                   'ssrfProxy', 'unstructured', 'plugin_daemon', 'plugin_manager']
+    # Services with replica configuration
+    # Note: workerBeat does not have replicas (it's a singleton scheduler)
+    services_with_replicas = [
+        'api', 'worker', 'web', 'sandbox', 'enterprise', 'enterpriseAudit',
+        'enterpriseFrontend', 'ssrfProxy', 'unstructured', 'plugin_daemon',
+        'plugin_controller', 'plugin_connector', 'plugin_manager'
+    ]
 
-        for service in services:
-            if service in generator.values:
-                current = generator.values[service].get('enabled', True)
-                generator.values[service]['enabled'] = prompt_yes_no(
-                    f"{_t('enable_service')} {service}?",
-                    default=current
+    # Ask user if they want to configure replica counts
+    configure_replicas = prompt_yes_no(_t('config_service_replicas'), default=False)
+
+    for service in services_with_replicas:
+        if service in generator.values:
+            # Skip replica configuration if service is disabled
+            service_enabled = generator.values[service].get('enabled', True)
+            if not service_enabled:
+                print_info(f"  {service}: {_t('service_disabled_skip_replica')}")
+                continue
+
+            # Get default replica count from template (default to 1 if not found)
+            default_replicas = generator.values[service].get('replicas', 1)
+
+            if configure_replicas:
+                # User wants to configure replica counts
+                replica_input = prompt(
+                    _t('replica_count_for').format(service=service),
+                    default=str(default_replicas),
+                    required=True
                 )
+                try:
+                    replica_count = int(replica_input)
+                    if replica_count < 1:
+                        print_warning(f"{_t('invalid_replica_count')}, {_t('using_default')}: {default_replicas}")
+                        replica_count = default_replicas
+                    generator.values[service]['replicas'] = replica_count
+                    print_success(f"  {service}: {replica_count} {_t('replica')}(s)")
+                except ValueError:
+                    print_warning(f"{_t('invalid_replica_count')}, {_t('using_default')}: {default_replicas}")
+                    generator.values[service]['replicas'] = default_replicas
+                    print_info(f"  {service}: {default_replicas} {_t('replica')}(s)")
+            else:
+                # Use default values
+                generator.values[service]['replicas'] = default_replicas
+                print_info(f"  {service}: {default_replicas} {_t('replica')}(s)")
 
-    # ==================== 主流程 ====================
+    # Note: unstructured.enabled is automatically configured in global_config based on RAG etlType
+    # No need to configure service enablement here

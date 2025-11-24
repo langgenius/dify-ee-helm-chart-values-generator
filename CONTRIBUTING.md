@@ -1,6 +1,6 @@
 # Contributing Guide
 
-Thank you for your interest in contributing to Dify Helm Chart Values Generator! 🎉
+Thank you for your interest in contributing to Dify EE (Enterprise Edition) Helm Chart Values Generator! 🎉
 
 ## How to Contribute
 

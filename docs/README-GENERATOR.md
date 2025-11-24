@@ -1,4 +1,4 @@
-# Dify Helm Chart Values 生成器使用说明
+# Dify EE（企业版）Helm Chart Values 生成器使用说明
 
 ## 概述
 
@@ -23,8 +23,9 @@
 
 - Python 3.6+
 - PyYAML 库（通常已包含在Python中）
-- openssl（用于生成密钥，可选）
+- openssl（用于生成密钥，通常系统已自带）
 - **ruamel.yaml（推荐）**：用于保留 YAML 文件的格式、注释和引号
+- **helm（必选）**：用于从 Helm Chart 仓库下载 values.yaml。脚本需要 Helm 才能正常工作。
 
 ### 安装依赖
 
@@ -178,7 +179,7 @@ python3 generate-values-prd.py
 $ python3 generate-values-prd.py
 
 ============================================================
-          Dify Helm Chart Values 生成器
+          Dify EE（企业版）Helm Chart Values 生成器
 ============================================================
 
 >>> 模块 1: 全局配置

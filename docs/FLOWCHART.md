@@ -1,4 +1,4 @@
-# Dify Helm Chart Values 生成器流程图
+# Dify EE（企业版）Helm Chart Values 生成器流程图
 
 ## 主流程图
 

@@ -29,11 +29,12 @@ Thumbs.db
 values-test*.yaml
 *.log
 
-# Test files
-test_*.py
+# Test files (commented out in dev branch to allow test files)
+# test_*.py
 
 # Generated configuration files (may contain sensitive data)
 values-prd.yaml
+out/
 
 # Values template (should be downloaded from Helm Chart repository)
 values.yaml
@@ -57,6 +58,8 @@ values-prd.yaml
 # Helm charts (submodule or downloaded)
 dify/
 dify-*.tgz
+dify-*/
 
 # Generated files
 config.json
+OPENSOURCE_CHECKLIST.md

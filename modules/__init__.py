@@ -1,4 +1,4 @@
-"""Configuration modules for Dify Helm Chart Values Generator"""
+"""Configuration modules for Dify EE (Enterprise Edition) Helm Chart Values Generator"""
 
 from .global_config import configure_global
 from .infrastructure import configure_infrastructure

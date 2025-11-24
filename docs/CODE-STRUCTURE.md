@@ -83,9 +83,9 @@
 - `prompt_choice()`: 多选提示
 
 #### `downloader.py`
-- `download_values_from_helm_repo()`: 从 Helm 仓库下载
-- `download_values_from_github()`: 从 GitHub 下载（备用）
+- `download_values_from_helm_repo()`: 从 Helm 仓库下载（必选，需要 Helm）
 - `get_or_download_values()`: 获取或下载 values.yaml
+- `download_and_extract_chart()`: 下载并解压 Helm Chart
 
 #### `secrets.py`
 - `generate_secret()`: 生成密钥（使用 openssl）

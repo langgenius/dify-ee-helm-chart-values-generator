@@ -1,0 +1,246 @@
+name: PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  code-review:
+    name: Code Review
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 pylint black yamllint pyyaml ruamel.yaml
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            **/*.py
+            **/*.yaml
+            **/*.yml
+            **/*.sh
+
+      - name: Python Lint (flake8)
+        if: steps.changed-files.outputs.any_changed == 'true'
+        continue-on-error: true
+        run: |
+          echo "## Python Code Style Check (flake8)" >> $GITHUB_STEP_SUMMARY
+          python_files=$(echo "${{ steps.changed-files.outputs.all_changed_files }}" | grep -E '\.py$' || true)
+          if [ -n "$python_files" ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$python_files" | xargs flake8 --max-line-length=120 --extend-ignore=E203,W503 --format=default >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$python_files" | xargs flake8 --max-line-length=120 --extend-ignore=E203,W503 --format=default || echo "::warning::flake8 found issues"
+          else
+            echo "No Python files changed, skipping flake8 check" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Python Lint (pylint)
+        if: steps.changed-files.outputs.any_changed == 'true'
+        continue-on-error: true
+        run: |
+          echo "## Python Code Quality Check (pylint)" >> $GITHUB_STEP_SUMMARY
+          python_files=$(echo "${{ steps.changed-files.outputs.all_changed_files }}" | grep -E '\.py$' || true)
+          if [ -n "$python_files" ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$python_files" | xargs pylint --max-line-length=120 --disable=C0111,R0903 >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$python_files" | xargs pylint --max-line-length=120 --disable=C0111,R0903 || echo "::warning::pylint found issues"
+          else
+            echo "No Python files changed, skipping pylint check" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check Python code formatting (black)
+        if: steps.changed-files.outputs.any_changed == 'true'
+        continue-on-error: true
+        run: |
+          echo "## Python Code Formatting Check (black)" >> $GITHUB_STEP_SUMMARY
+          python_files=$(echo "${{ steps.changed-files.outputs.all_changed_files }}" | grep -E '\.py$' || true)
+          if [ -n "$python_files" ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$python_files" | xargs black --check --diff --line-length=120 >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$python_files" | xargs black --check --line-length=120 || echo "::warning::Code formatting issues found. Run 'black --line-length=120 .' to fix"
+          else
+            echo "No Python files changed, skipping black check" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: YAML Lint
+        if: steps.changed-files.outputs.any_changed == 'true'
+        continue-on-error: true
+        run: |
+          echo "## YAML File Validation" >> $GITHUB_STEP_SUMMARY
+          yaml_files=$(echo "${{ steps.changed-files.outputs.all_changed_files }}" | grep -E '\.(yaml|yml)$' || true)
+          if [ -n "$yaml_files" ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$yaml_files" | xargs yamllint -d .yamllint.yml >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$yaml_files" | xargs yamllint -d .yamllint.yml || echo "::warning::YAML lint issues found"
+          else
+            echo "No YAML files changed, skipping yamllint check" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Validate YAML syntax
+        if: steps.changed-files.outputs.any_changed == 'true'
+        continue-on-error: true
+        run: |
+          echo "## YAML Syntax Validation" >> $GITHUB_STEP_SUMMARY
+          python3 << 'EOF'
+          import yaml
+          import sys
+          import os
+
+          changed_files = os.environ.get('CHANGED_FILES', '').split()
+          errors = []
+
+          for file in changed_files:
+              if file.endswith(('.yaml', '.yml')):
+                  try:
+                      with open(file, 'r') as f:
+                          yaml.safe_load(f)
+                      print(f"✓ {file} is valid YAML")
+                  except yaml.YAMLError as e:
+                      error_msg = f"✗ {file}: {str(e)}"
+                      print(error_msg)
+                      errors.append(error_msg)
+
+          if errors:
+              print("\n## Errors found:")
+              for error in errors:
+                  print(error)
+              sys.exit(1)
+          EOF
+        env:
+          CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+
+      - name: Shell script lint
+        if: steps.changed-files.outputs.any_changed == 'true'
+        continue-on-error: true
+        run: |
+          echo "## Shell Script Validation" >> $GITHUB_STEP_SUMMARY
+          shell_files=$(echo "${{ steps.changed-files.outputs.all_changed_files }}" | grep -E '\.sh$' || true)
+          if [ -n "$shell_files" ]; then
+            if command -v shellcheck &> /dev/null; then
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "$shell_files" | xargs shellcheck >> $GITHUB_STEP_SUMMARY 2>&1 || true
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "$shell_files" | xargs shellcheck || echo "::warning::Shell script issues found"
+            else
+              echo "shellcheck not installed, skipping shell script validation" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "No shell scripts changed, skipping shellcheck" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for common issues
+        if: steps.changed-files.outputs.any_changed == 'true'
+        continue-on-error: true
+        run: |
+          echo "## Common Issues Check" >> $GITHUB_STEP_SUMMARY
+          python3 << 'EOF'
+          import os
+          import re
+          import sys
+
+          changed_files = os.environ.get('CHANGED_FILES', '').split()
+          issues = []
+
+          # Check for hardcoded secrets
+          secret_patterns = [
+              r'password\s*=\s*["\'][^"\']+["\']',
+              r'api[_-]?key\s*=\s*["\'][^"\']+["\']',
+              r'secret\s*=\s*["\'][^"\']+["\']',
+              r'token\s*=\s*["\'][^"\']+["\']',
+          ]
+
+          for file in changed_files:
+              if file.endswith('.py'):
+                  try:
+                      with open(file, 'r', encoding='utf-8') as f:
+                          content = f.read()
+                          for i, line in enumerate(content.split('\n'), 1):
+                              for pattern in secret_patterns:
+                                  if re.search(pattern, line, re.IGNORECASE):
+                                      # Skip if it's a comment or docstring
+                                      if not line.strip().startswith('#') and '"""' not in line:
+                                          issues.append(f"⚠️  {file}:{i} - Possible hardcoded secret detected")
+                  except Exception as e:
+                      print(f"Error reading {file}: {e}")
+
+          if issues:
+              print("\n## Potential Issues:")
+              for issue in issues:
+                  print(issue)
+              print("\nPlease review these potential security issues.")
+          else:
+              print("✓ No obvious security issues detected")
+          EOF
+        env:
+          CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+
+      - name: Post review comment
+        if: always() && steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+            let summary = '';
+
+            try {
+              if (fs.existsSync(summaryPath)) {
+                summary = fs.readFileSync(summaryPath, 'utf8');
+              }
+
+              // Only post comment if there's content
+              if (summary && summary.trim().length > 0) {
+                const comment = `## 🤖 Automated Code Review
+
+                This PR has been automatically reviewed. Please check the details below:
+
+                ${summary}
+
+                ---
+                *This review was generated automatically by GitHub Actions*`;
+
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+              }
+            } catch (error) {
+              console.error('Error posting review comment:', error);
+              // Don't fail the workflow if comment posting fails
+            }
+

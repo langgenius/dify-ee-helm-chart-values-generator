@@ -7,6 +7,7 @@ import shutil
 import json
 import urllib.request
 import yaml
+import tarfile
 from typing import Optional, List
 from pathlib import Path
 
@@ -24,12 +25,15 @@ def get_helm_chart_versions(
     repo_name: Optional[str] = None
 ) -> List[str]:
     """
-    Get all available versions of a Helm Chart from repository index.yaml
+    Get all available versions by directly downloading index.yaml
+
+    This function is used for displaying version list to users.
+    It directly downloads index.yaml for faster and more reliable access.
 
     Args:
         chart_name: Chart name, defaults to config.HELM_CHART_NAME
         repo_url: Helm Chart repository URL, defaults to config.HELM_REPO_URL
-        repo_name: Repository name, defaults to config.HELM_REPO_NAME
+        repo_name: Repository name, defaults to config.HELM_REPO_NAME (not used, kept for compatibility)
 
     Returns:
         List of available versions (sorted, latest first)
@@ -37,11 +41,59 @@ def get_helm_chart_versions(
     # Use global config defaults if not provided
     chart_name = chart_name or config.HELM_CHART_NAME
     repo_url = repo_url or config.HELM_REPO_URL
-    repo_name = repo_name or config.HELM_REPO_NAME
 
     versions = []
 
-    # Method 1: Try to get versions from Helm command
+    # Directly download index.yaml to get all versions
+    try:
+        index_url = f"{repo_url.rstrip('/')}/index.yaml"
+        print_info(_t('fetching_versions_from_index'))
+        with urllib.request.urlopen(index_url, timeout=config.DOWNLOAD_TIMEOUT) as response:
+            index_data = yaml.safe_load(response.read())
+            if index_data and 'entries' in index_data:
+                chart_entries = index_data['entries'].get(chart_name, [])
+                versions = [entry.get('version', '') for entry in chart_entries if entry.get('version')]
+    except Exception as e:
+        print_warning(f"{_t('failed_to_fetch_versions')}: {e}")
+
+    # Sort versions (semantic versioning, latest first)
+    def version_key(v):
+        try:
+            parts = v.split('.')
+            return tuple(int(p) if p.isdigit() else 0 for p in parts)
+        except:
+            return (0, 0, 0)
+
+    versions = sorted(set(versions), key=version_key, reverse=True)
+    return versions
+
+
+def get_published_version(
+    chart_name: Optional[str] = None,
+    repo_url: Optional[str] = None,
+    repo_name: Optional[str] = None,
+    version: Optional[str] = None
+) -> Optional[str]:
+    """
+    Get published version using Helm command
+
+    This function is used when downloading values.yaml for a specific version.
+    It uses Helm command to ensure the version is actually published and available.
+
+    Args:
+        chart_name: Chart name, defaults to config.HELM_CHART_NAME
+        repo_url: Helm Chart repository URL, defaults to config.HELM_REPO_URL
+        repo_name: Repository name, defaults to config.HELM_REPO_NAME
+        version: Specific version to check, if None returns latest published version
+
+    Returns:
+        Version string if found, None otherwise
+    """
+    # Use global config defaults if not provided
+    chart_name = chart_name or config.HELM_CHART_NAME
+    repo_url = repo_url or config.HELM_REPO_URL
+    repo_name = repo_name or config.HELM_REPO_NAME
+
     try:
         # Ensure repository is added
         check_repo_cmd = ["helm", "repo", "list", "-o", "json"]
@@ -72,7 +124,85 @@ def get_helm_chart_versions(
                     stderr=subprocess.PIPE
                 )
             except subprocess.CalledProcessError:
-                pass
+                return None
+
+        # Get versions using helm search
+        versions_cmd = ["helm", "search", "repo", f"{repo_name}/{chart_name}", "--versions", "-o", "json"]
+        versions_output = subprocess.check_output(versions_cmd, stderr=subprocess.PIPE).decode()
+        versions_data = json.loads(versions_output)
+        if versions_data:
+            if version:
+                # Check if specific version exists
+                for item in versions_data:
+                    if item.get("version") == version:
+                        return version
+                return None
+            else:
+                # Return latest version
+                if len(versions_data) > 0:
+                    return versions_data[0].get("version")
+    except Exception:
+        pass
+
+    return None
+
+
+def get_published_versions(
+    chart_name: Optional[str] = None,
+    repo_url: Optional[str] = None,
+    repo_name: Optional[str] = None
+) -> List[str]:
+    """
+    Get published versions using Helm command
+
+    This function uses Helm command to get versions that are actually published and available.
+
+    Args:
+        chart_name: Chart name, defaults to config.HELM_CHART_NAME
+        repo_url: Helm Chart repository URL, defaults to config.HELM_REPO_URL
+        repo_name: Repository name, defaults to config.HELM_REPO_NAME
+
+    Returns:
+        List of published versions (sorted, latest first)
+    """
+    # Use global config defaults if not provided
+    chart_name = chart_name or config.HELM_CHART_NAME
+    repo_url = repo_url or config.HELM_REPO_URL
+    repo_name = repo_name or config.HELM_REPO_NAME
+
+    versions = []
+
+    try:
+        # Ensure repository is added
+        check_repo_cmd = ["helm", "repo", "list", "-o", "json"]
+        try:
+            repo_list = json.loads(subprocess.check_output(check_repo_cmd, stderr=subprocess.STDOUT).decode())
+            repos = [r.get("name", "") for r in repo_list]
+            if repo_name not in repos:
+                subprocess.check_call(
+                    ["helm", "repo", "add", repo_name, repo_url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE
+                )
+            subprocess.check_call(
+                ["helm", "repo", "update", repo_name],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE
+            )
+        except (subprocess.CalledProcessError, json.JSONDecodeError):
+            try:
+                subprocess.check_call(
+                    ["helm", "repo", "add", repo_name, repo_url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE
+                )
+                subprocess.check_call(
+                    ["helm", "repo", "update", repo_name],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE
+                )
+            except subprocess.CalledProcessError:
+                return []
 
         # Get versions using helm search
         versions_cmd = ["helm", "search", "repo", f"{repo_name}/{chart_name}", "--versions", "-o", "json"]
@@ -82,19 +212,6 @@ def get_helm_chart_versions(
             versions = [item.get("version", "") for item in versions_data if item.get("version")]
     except Exception:
         pass
-
-    # Method 2: Fallback to downloading index.yaml directly
-    if not versions:
-        try:
-            index_url = f"{repo_url.rstrip('/')}/index.yaml"
-            print_info(_t('fetching_versions_from_index'))
-            with urllib.request.urlopen(index_url, timeout=config.DOWNLOAD_TIMEOUT) as response:
-                index_data = yaml.safe_load(response.read())
-                if index_data and 'entries' in index_data:
-                    chart_entries = index_data['entries'].get(chart_name, [])
-                    versions = [entry.get('version', '') for entry in chart_entries if entry.get('version')]
-        except Exception as e:
-            print_warning(f"{_t('failed_to_fetch_versions')}: {e}")
 
     # Sort versions (semantic versioning, latest first)
     def version_key(v):
@@ -129,8 +246,21 @@ def prompt_helm_chart_version(
     repo_url = repo_url or config.HELM_REPO_URL
     repo_name = repo_name or config.HELM_REPO_NAME
 
-    print_info(_t('fetching_available_versions'))
-    versions = get_helm_chart_versions(chart_name, repo_url, repo_name)
+    # Prompt user to choose version source
+    print_info("")
+    version_source = prompt_choice(
+        _t('select_version_source'),
+        [_t('published_versions'), _t('all_versions')],
+        default=_t('published_versions')
+    )
+
+    # Fetch versions based on user's choice
+    if version_source == _t('published_versions'):
+        print_info(_t('fetching_published_versions'))
+        versions = get_published_versions(chart_name, repo_url, repo_name)
+    else:
+        print_info(_t('fetching_available_versions'))
+        versions = get_helm_chart_versions(chart_name, repo_url, repo_name)
 
     if not versions:
         print_warning(_t('no_versions_found'))
@@ -170,7 +300,6 @@ def prompt_helm_chart_version(
             print_info(f"  {display_number}. {option} ({_t('recommended')}) [{_t('default')}]")
         else:
             print_info(f"  {display_number}. {option}")
-    print_info("")
 
     # Custom prompt for reverse numbering
     # Map reverse display numbers to actual option indices
@@ -206,11 +335,170 @@ def prompt_helm_chart_version(
     # selected is already set above
 
     # Check if user selected the latest option (with version number)
-    # If selected matches latest_option format, return None (use latest)
+    # If selected matches latest_option format, return the actual version number
     if selected == latest_option:
-        return None
+        # Return the actual latest version number, not None
+        # This ensures we use the exact version the user selected (e.g., 3.6.0-beta.1)
+        return latest_version
     # Return the selected version (which is not the latest)
     return selected
+
+
+def download_and_extract_chart(
+    chart_name: Optional[str] = None,
+    repo_url: Optional[str] = None,
+    version: Optional[str] = None,
+    repo_name: Optional[str] = None,
+    extract_dir: Optional[str] = None
+) -> Optional[str]:
+    """
+    Download and extract Helm Chart to local directory
+
+    Args:
+        chart_name: Chart name, defaults to config.HELM_CHART_NAME
+        repo_url: Helm Chart repository URL, defaults to config.HELM_REPO_URL
+        version: Chart version, if None uses latest version
+        repo_name: Repository name, defaults to config.HELM_REPO_NAME
+        extract_dir: Directory to extract chart, defaults to dify-{version}
+
+    Returns:
+        Path to extracted chart directory, or None if failed
+    """
+    # Use global config defaults if not provided
+    chart_name = chart_name or config.HELM_CHART_NAME
+    repo_url = repo_url or config.HELM_REPO_URL
+    repo_name = repo_name or config.HELM_REPO_NAME
+
+    # Check if helm command is available
+    helm_available = shutil.which("helm") is not None
+    if not helm_available:
+        print_error(_t('helm_not_found'))
+        return None
+
+    try:
+        # Ensure repository is added
+        check_repo_cmd = ["helm", "repo", "list", "-o", "json"]
+        try:
+            repo_list = json.loads(subprocess.check_output(check_repo_cmd, stderr=subprocess.STDOUT).decode())
+            repos = [r.get("name", "") for r in repo_list]
+            if repo_name not in repos:
+                print_info(f"{_t('adding_repo')}: {repo_name}")
+                subprocess.check_call(
+                    ["helm", "repo", "add", repo_name, repo_url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE
+                )
+            subprocess.check_call(
+                ["helm", "repo", "update", repo_name],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE
+            )
+        except (subprocess.CalledProcessError, json.JSONDecodeError):
+            try:
+                subprocess.check_call(
+                    ["helm", "repo", "add", repo_name, repo_url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE
+                )
+                subprocess.check_call(
+                    ["helm", "repo", "update", repo_name],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE
+                )
+            except subprocess.CalledProcessError as e:
+                print_error(f"{_t('add_repo_failed')}: {e}")
+                return None
+
+        # Get actual version if not specified
+        if not version:
+            actual_version = get_published_version(chart_name, repo_url, repo_name)
+            if not actual_version:
+                print_error(_t('failed_to_get_latest_version'))
+                return None
+            version = actual_version
+
+        # Determine extract directory
+        if not extract_dir:
+            extract_dir = f"dify-{version}"
+        extract_path = Path(extract_dir)
+
+        # Check if already extracted
+        if extract_path.exists() and extract_path.is_dir():
+            print_warning(f"{_t('chart_directory_exists')}: {extract_path}")
+            choice = prompt_choice(
+                _t('chart_directory_exists_prompt'),
+                [_t('use_existing_directory'), _t('overwrite_existing_directory')],
+                default=_t('use_existing_directory')
+            )
+            if choice == _t('use_existing_directory'):
+                print_info(f"{_t('using_existing_directory')}: {extract_path}")
+                return str(extract_path)
+            else:
+                # User chose to overwrite
+                print_info(_t('removing_existing_directory'))
+                shutil.rmtree(extract_path)
+
+        # Download chart using helm pull
+        print_info(_t('downloading_chart'))
+        chart_ref = f"{repo_name}/{chart_name}"
+
+        # Use a temporary directory for extraction, then move to final location
+        import tempfile
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            helm_cmd = ["helm", "pull", chart_ref, "--version", version, "--untar", "--untardir", str(temp_path)]
+
+            try:
+                subprocess.check_call(
+                    helm_cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE
+                )
+
+                # Helm pull --untar extracts to {chart_name} directory (without version)
+                # Find the extracted directory
+                extracted_chart_dir = temp_path / chart_name
+                if not extracted_chart_dir.exists():
+                    # Try alternative naming: {chart_name}-{version}
+                    extracted_chart_dir = temp_path / f"{chart_name}-{version}"
+                if not extracted_chart_dir.exists():
+                    # Try to find any directory that was created
+                    extracted_dirs = [d for d in temp_path.iterdir() if d.is_dir()]
+                    if extracted_dirs:
+                        extracted_chart_dir = extracted_dirs[0]
+                    else:
+                        # List what's actually in temp directory for debugging
+                        actual_contents = list(temp_path.iterdir())
+                        print_error(f"{_t('chart_extract_error')}: Extracted directory not found in {temp_path}")
+                        print_error(f"Actual contents: {[str(p) for p in actual_contents]}")
+                        return None
+
+                # Remove target directory if exists
+                if extract_path.exists():
+                    shutil.rmtree(extract_path)
+                # Move extracted directory to final location
+                extracted_chart_dir.rename(extract_path)
+                print_success(f"{_t('chart_extracted_to')}: {extract_path}")
+                return str(extract_path)
+
+            except subprocess.CalledProcessError as e:
+                # Get stderr for better error message
+                try:
+                    result = subprocess.run(
+                        helm_cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True
+                    )
+                    error_msg = result.stderr.strip() if result.stderr else str(e)
+                    print_error(f"{_t('chart_download_failed')}: {error_msg}")
+                except:
+                    print_error(f"{_t('chart_download_failed')}: {e}")
+                return None
+
+    except Exception as e:
+        print_error(f"{_t('chart_extract_error')}: {e}")
+        return None
 
 
 def download_values_from_helm_repo(
@@ -321,18 +609,12 @@ def download_values_from_helm_repo(
         if version:
             cache_file = cache_path / f"values-{version}.yaml"
         else:
-            # Get actual version
-            try:
-                versions_cmd = ["helm", "search", "repo", f"{repo_name}/{chart_name}", "--versions", "-o", "json"]
-                versions_output = subprocess.check_output(versions_cmd, stderr=subprocess.PIPE).decode()
-                versions_data = json.loads(versions_output)
-                if versions_data and len(versions_data) > 0:
-                    actual_version = versions_data[0].get("version", "latest")
-                    cache_file = cache_path / f"values-{actual_version}.yaml"
-                    print_info(f"{_t('detected_version')}: {actual_version}")
-                else:
-                    cache_file = cache_path / "values-latest.yaml"
-            except:
+            # Get actual published version using Helm command
+            actual_version = get_published_version(chart_name, repo_url, repo_name)
+            if actual_version:
+                cache_file = cache_path / f"values-{actual_version}.yaml"
+                print_info(f"{_t('detected_version')}: {actual_version}")
+            else:
                 cache_file = cache_path / "values-latest.yaml"
 
         # Save to cache file
@@ -362,7 +644,7 @@ def get_or_download_values(
     prompt_version: bool = True,
     repo_url: Optional[str] = None,
     repo_name: Optional[str] = None
-) -> str:
+) -> tuple[str, Optional[str]]:
     """
     Get values.yaml file, download if not exists
 
@@ -374,7 +656,7 @@ def get_or_download_values(
         repo_name: Repository name, defaults to config.HELM_REPO_NAME
 
     Returns:
-        Path to values.yaml file
+        Tuple of (path to values.yaml file, actual version used)
     """
     # Use global config defaults if not provided
     repo_url = repo_url or config.HELM_REPO_URL
@@ -384,25 +666,49 @@ def get_or_download_values(
     local_values = Path(config.LOCAL_VALUES_FILE)
     if local_values.exists() and not force_download:
         print_info(f"{_t('using_local')}: {local_values}")
-        return str(local_values)
+        # Try to get version from cache or use latest
+        actual_version = None
+        cache_path = Path(config.CACHE_DIR)
+        # Check if we can find version from cache files
+        if cache_path.exists():
+            cache_files = list(cache_path.glob("values-*.yaml"))
+            if cache_files:
+                import re
+                for cf in cache_files:
+                    match = re.search(r'values-([\d.]+(?:-[a-zA-Z0-9.]+)?)\.yaml', cf.name)
+                    if match:
+                        actual_version = match.group(1)
+                        break
+        return str(local_values), actual_version
 
     # Prompt for version selection if not specified
+    selected_version = version
     if version is None and prompt_version:
         print_info("")
-        version = prompt_helm_chart_version(repo_url=repo_url, repo_name=repo_name)
+        selected_version = prompt_helm_chart_version(repo_url=repo_url, repo_name=repo_name)
 
     # Check cache
     cache_path = Path(config.CACHE_DIR)
-    if version:
-        cache_file = cache_path / f"values-{version}.yaml"
+    if selected_version:
+        cache_file = cache_path / f"values-{selected_version}.yaml"
     else:
         cache_file = cache_path / "values-latest.yaml"
 
     if cache_file.exists() and not force_download:
         print_info(f"{_t('using_cached')}: {cache_file}")
-        return str(cache_file)
+        return str(cache_file), selected_version
 
     # Download values.yaml
     print_info(_t('not_found_downloading'))
-    return download_values_from_helm_repo(version=version, repo_url=repo_url, repo_name=repo_name)
+    source_file = download_values_from_helm_repo(version=selected_version, repo_url=repo_url, repo_name=repo_name)
+
+    # Extract actual version from downloaded file
+    actual_version = selected_version
+    if not actual_version:
+        import re
+        match = re.search(r'values-([\d.]+(?:-[a-zA-Z0-9.]+)?)\.yaml', source_file)
+        if match:
+            actual_version = match.group(1)
+
+    return source_file, actual_version
 

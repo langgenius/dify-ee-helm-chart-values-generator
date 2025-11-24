@@ -1,4 +1,4 @@
-# Dify Helm Chart Values Generator
+# Dify EE (Enterprise Edition) Helm Chart Values Generator
 
 > An interactive tool for generating production-ready Helm Chart values files for Dify Enterprise Edition
 
@@ -26,6 +26,7 @@ This project provides a Python script `generate-values-prd.py` that interactivel
 - ✅ **RAG Integration**: Automatically handles RAG type and unstructured module relationships
 - ✅ **Interactive Guidance**: User-friendly CLI interface with detailed configuration for databases and Redis connections
 - ✅ **Progress Preservation**: Supports saving partial configuration after interruption
+- ✅ **Automated PR Review**: GitHub Actions bot automatically reviews PRs for code quality, formatting, and security issues
 
 ## 🚀 Quick Start
 
@@ -35,7 +36,7 @@ This project provides a Python script `generate-values-prd.py` that interactivel
 - PyYAML library
 - `openssl` (usually pre-installed on systems)
 - `ruamel.yaml` (recommended): For preserving YAML file format, comments, and quotes
-- `helm` (optional, but recommended): For downloading values.yaml from Helm Chart repository. If not installed, the script will try to download from GitHub directly.
+- `helm` (required): For downloading values.yaml from Helm Chart repository. The script requires Helm to be installed.
 
 ### Installation
 
@@ -94,7 +95,7 @@ python generate-values-prd.py --force-download
 - `--force-download, -f`: Force re-download values.yaml (ignore cache)
 - `--repo-url`: Custom Helm Chart repository URL
 
-The script will automatically download `values.yaml` from the official Dify Helm Chart repository if it's not found locally. Downloaded files are cached in `.cache/` directory.
+The script requires Helm to be installed. It will automatically download `values.yaml` from the official Dify Helm Chart repository if it's not found locally. Downloaded files are cached in `.cache/` directory.
 
 The script will guide you through the following configuration modules:
 
@@ -105,20 +106,25 @@ The script will guide you through the following configuration modules:
 5. **Plugin Configuration** - Plugin connector image repository configuration
 6. **Service Configuration** - Application service configuration
 
-The generated configuration file will be saved as `values-prd.yaml`.
+The generated configuration file will be saved as `out/values-prd-{version}.yaml` (e.g., `out/values-prd-3.5.6.yaml`).
 
 ## 📁 Project Structure
 
 ```
 .
 ├── generate-values-prd.py    # Main script file
-├── values.yaml               # Base configuration template
-├── values-prd.yaml          # Generated production config (gitignored)
+├── generator.py              # Core generator class
+├── version_manager.py        # Version management
+├── config.py                 # Configuration constants
 ├── pyproject.toml           # Python project configuration
 ├── requirements.txt         # Python dependencies
 ├── LICENSE                  # MIT License
 ├── CONTRIBUTING.md          # Contribution guidelines
 ├── .gitignore              # Git ignore configuration
+├── modules/                # Configuration modules
+├── utils/                  # Utility functions
+├── i18n/                   # Internationalization
+├── out/                    # Generated output files (gitignored)
 └── docs/                   # Documentation directory
     ├── README-GENERATOR.md  # Detailed usage guide
     ├── MODULES.md          # Module structure and relationships
@@ -180,14 +186,28 @@ The script automatically handles the following relationships:
 
 ## 🔒 Security
 
-- Generated `values-prd.yaml` contains sensitive information and is gitignored
+- Generated `values-prd-{version}.yaml` files contain sensitive information and are gitignored
+- All generated files are saved in `out/` directory which is gitignored
 - Sensitive files like `email-server.txt` are excluded from the repository
 - All keys are generated using `openssl` for security
 - Supports IRSA (IAM Roles for Service Accounts) for AWS ECR authentication
+- Never commit generated configuration files to version control
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+### Automated PR Review
+
+This project uses an automated PR review bot powered by GitHub Actions. When you create or update a Pull Request, the bot will automatically:
+
+- Check Python code style (flake8, pylint)
+- Verify code formatting (black)
+- Validate YAML files (yamllint)
+- Check shell scripts (shellcheck)
+- Scan for potential security issues
+
+See [docs/PR-REVIEW.md](docs/PR-REVIEW.md) for more details.
 
 ## 📝 License
 

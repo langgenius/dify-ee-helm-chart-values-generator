@@ -1,4 +1,4 @@
-"""Utility modules for Dify Helm Chart Values Generator"""
+"""Utility modules for Dify EE (Enterprise Edition) Helm Chart Values Generator"""
 
 from .colors import Colors, print_header, print_section, print_info, print_success, print_warning, print_error
 from .prompts import prompt, prompt_yes_no, prompt_choice

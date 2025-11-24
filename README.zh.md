@@ -1,4 +1,4 @@
-# Dify Helm Chart Values 生成器
+# Dify EE（企业版）Helm Chart Values 生成器
 
 > 一个交互式工具，用于生成 Dify Enterprise Edition 的生产环境 Helm Chart values 配置文件
 
@@ -35,7 +35,7 @@
 - PyYAML 库
 - `openssl`（用于生成密钥，通常系统已自带）
 - `ruamel.yaml`（推荐）：用于保留 YAML 文件的格式、注释和引号
-- `helm`（可选，但推荐）：用于从 Helm Chart 仓库下载 values.yaml。如果未安装，脚本会尝试从 GitHub 直接下载。
+- `helm`（必选）：用于从 Helm Chart 仓库下载 values.yaml。脚本需要 Helm 才能正常工作。
 
 ### 安装依赖
 
@@ -69,16 +69,16 @@ pip install -r requirements.txt
 python generate-values-prd.py
 ```
 
-**指定版本：**
+**指定 Helm Chart 版本：**
 
 ```bash
-python generate-values-prd.py --version 3.6.0
+python generate-values-prd.py --chart-version 3.5.6
 ```
 
-**使用本地 values.yaml：**
+**使用本地 values.yaml（必须指定版本）：**
 
 ```bash
-python generate-values-prd.py --local
+python generate-values-prd.py --local --chart-version 3.5.6
 ```
 
 **强制重新下载：**
@@ -87,14 +87,23 @@ python generate-values-prd.py --local
 python generate-values-prd.py --force-download
 ```
 
+**指定语言：**
+
+```bash
+python generate-values-prd.py --lang zh
+```
+
 **命令行选项：**
 
-- `--version, -v`: 指定 Helm Chart 版本（默认：最新版本）
-- `--local, -l`: 使用本地 values.yaml 文件（不下载）
+- `--chart-version, -c`: 指定 Helm Chart 版本（默认：交互式选择）
+- `--local, -l`: 使用本地 values.yaml 文件（需要指定 --chart-version）
 - `--force-download, -f`: 强制重新下载 values.yaml（忽略缓存）
+- `--lang, --language`: 语言选择（en/zh，默认：交互式选择）
 - `--repo-url`: 自定义 Helm Chart 仓库 URL
 
-脚本会自动从官方 Dify Helm Chart 仓库下载 `values.yaml`（如果本地不存在）。下载的文件会缓存在 `.cache/` 目录中。
+**注意：** Dify EE 版本会根据 Helm Chart 版本自动确定。Chart 版本 3.x 映射到 EE 3.x，Chart 版本 2.x 映射到 EE 2.x，以此类推。
+
+脚本需要安装 Helm 才能正常工作。它会自动从官方 Dify Helm Chart 仓库下载 `values.yaml`（如果本地不存在）。下载的文件会缓存在 `.cache/` 目录中。
 
 脚本会引导你完成以下配置模块：
 
@@ -102,10 +111,10 @@ python generate-values-prd.py --force-download
 2. **基础设施模块** - 数据库、存储、缓存（互斥选择）
 3. **网络配置模块** - Ingress 配置
 4. **邮件配置模块** - 邮件服务配置
-5. **插件配置模块** - 插件连接器镜像仓库配置
+5. **插件配置模块** - 插件连接器镜像仓库配置（仅 3.x 版本）
 6. **服务配置模块** - 应用服务配置
 
-生成的配置文件将保存为 `values-prd.yaml`。
+生成的配置文件将保存为 `out/values-prd-{version}.yaml`（例如：`out/values-prd-3.5.6.yaml`）。
 
 ## 📁 项目结构
 

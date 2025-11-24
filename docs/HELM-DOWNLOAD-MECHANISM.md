@@ -105,27 +105,12 @@ Helm 会自动缓存下载的 Chart：
 - Helm 缓存的是完整的 Chart 压缩包（`.tgz`）
 - 我们的函数缓存的是提取出的 `values.yaml` 文本文件
 
-### 备用方案：GitHub 直接下载
-
-如果 Helm 命令不可用，函数会回退到从 GitHub 直接下载：
-
-```python
-# 直接从 GitHub 仓库的 main 分支下载 values.yaml
-url = "https://raw.githubusercontent.com/langgenius/dify-helm/main/values.yaml"
-```
-
-这种方式：
-- 不依赖 Helm 命令
-- 直接从 Git 仓库获取文件
-- 获取的是纯文本 YAML 文件（不是压缩包）
-
 ### 总结
 
 | 方式 | 获取的内容 | 格式 |
 |------|-----------|------|
 | `helm show values` | values.yaml 内容 | **纯文本 YAML** |
 | Helm 仓库存储 | Chart 压缩包 | `.tgz` 压缩包 |
-| GitHub 直接下载 | values.yaml 文件 | **纯文本 YAML** |
 
 **关键理解**：
 - Helm 仓库存储的是**压缩包**（`.tgz`）
@@ -144,7 +129,7 @@ url = "https://raw.githubusercontent.com/langgenius/dify-helm/main/values.yaml"
 
 ### 注意事项
 
-1. **需要 Helm 命令**：如果系统没有安装 Helm，会回退到 GitHub 下载
+1. **Helm 为必选依赖**：如果系统没有安装 Helm，脚本会显示安装说明并退出
 2. **网络连接**：需要能够访问 Helm 仓库 URL
 3. **版本匹配**：确保指定的版本在仓库中存在
 4. **缓存清理**：如果需要强制重新下载，使用 `--force-download` 参数
