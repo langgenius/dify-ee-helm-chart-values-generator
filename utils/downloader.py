@@ -335,9 +335,11 @@ def prompt_helm_chart_version(
     # selected is already set above
 
     # Check if user selected the latest option (with version number)
-    # If selected matches latest_option format, return None (use latest)
+    # If selected matches latest_option format, return the actual version number
     if selected == latest_option:
-        return None
+        # Return the actual latest version number, not None
+        # This ensures we use the exact version the user selected (e.g., 3.6.0-beta.1)
+        return latest_version
     # Return the selected version (which is not the latest)
     return selected
 
@@ -442,19 +444,31 @@ def download_and_extract_chart(
                     stderr=subprocess.PIPE
                 )
 
-                # Helm pull --untar extracts to {chart_name}-{version} directory
-                extracted_chart_dir = temp_path / f"{chart_name}-{version}"
-                if extracted_chart_dir.exists():
-                    # Remove target directory if exists
-                    if extract_path.exists():
-                        shutil.rmtree(extract_path)
-                    # Move extracted directory to final location
-                    extracted_chart_dir.rename(extract_path)
-                    print_success(f"{_t('chart_extracted_to')}: {extract_path}")
-                    return str(extract_path)
-                else:
-                    print_error(f"{_t('chart_extract_error')}: Extracted directory not found: {extracted_chart_dir}")
-                    return None
+                # Helm pull --untar extracts to {chart_name} directory (without version)
+                # Find the extracted directory
+                extracted_chart_dir = temp_path / chart_name
+                if not extracted_chart_dir.exists():
+                    # Try alternative naming: {chart_name}-{version}
+                    extracted_chart_dir = temp_path / f"{chart_name}-{version}"
+                if not extracted_chart_dir.exists():
+                    # Try to find any directory that was created
+                    extracted_dirs = [d for d in temp_path.iterdir() if d.is_dir()]
+                    if extracted_dirs:
+                        extracted_chart_dir = extracted_dirs[0]
+                    else:
+                        # List what's actually in temp directory for debugging
+                        actual_contents = list(temp_path.iterdir())
+                        print_error(f"{_t('chart_extract_error')}: Extracted directory not found in {temp_path}")
+                        print_error(f"Actual contents: {[str(p) for p in actual_contents]}")
+                        return None
+
+                # Remove target directory if exists
+                if extract_path.exists():
+                    shutil.rmtree(extract_path)
+                # Move extracted directory to final location
+                extracted_chart_dir.rename(extract_path)
+                print_success(f"{_t('chart_extracted_to')}: {extract_path}")
+                return str(extract_path)
 
             except subprocess.CalledProcessError as e:
                 # Get stderr for better error message
