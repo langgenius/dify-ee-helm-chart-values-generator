@@ -1,154 +1,205 @@
 # Dify Helm Chart Values Generator
 
-一个交互式工具，用于生成 Dify Enterprise Edition 的 Helm Chart 生产环境配置文件。
+> An interactive tool for generating production-ready Helm Chart values files for Dify Enterprise Edition
 
-## 📋 项目简介
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: PEP 8](https://img.shields.io/badge/code%20style-PEP%208-orange.svg)](https://www.python.org/dev/peps/pep-0008/)
 
-本项目提供了一个 Python 脚本 `generate-values-prd.py`，通过交互式引导帮助用户生成 `values-prd.yaml` 配置文件。脚本采用模块化设计，自动处理配置项之间的联动关系，确保配置的一致性和正确性。
+## 📋 Overview
 
-## ✨ 功能特点
+This project provides a Python script `generate-values-prd.py` that interactively guides users through generating `values-prd.yaml` configuration files. The script uses a modular design and automatically handles relationships between configuration items to ensure consistency and correctness.
 
-- ✅ **模块化配置**: 将配置分为5个主要模块，逻辑清晰
-- ✅ **自动处理联动**: 自动处理互斥选择和依赖关系
-- ✅ **密钥自动生成**: 所有密钥按注释要求自动生成（使用 openssl）
-  - `appSecretKey`: 42字节
-  - `innerApiKey`: 42字节
-  - `enterprise.appSecretKey`: 42字节
-  - `enterprise.adminAPIsSecretKeySalt`: 42字节
-  - `enterprise.passwordEncryptionKey`: 32字节（AES-256）
-- ✅ **TLS联动检查**: TLS配置与Ingress联动，自动检查一致性避免CORS问题
-- ✅ **RAG联动**: 自动处理RAG类型与unstructured模块的联动关系
-- ✅ **交互式引导**: 友好的命令行交互界面，详细配置每个数据库和Redis连接
-- ✅ **进度保存**: 支持中断后保存部分配置
+[English](README.md) | [中文](README.zh.md)
 
-## 🚀 快速开始
+## ✨ Features
 
-### 前置要求
+- ✅ **Modular Configuration**: Organized into 6 main modules with clear logic
+- ✅ **Automatic Relationship Handling**: Automatically processes mutual exclusions and dependencies
+- ✅ **Auto Key Generation**: All keys are automatically generated using `openssl`:
+  - `appSecretKey`: 42 bytes
+  - `innerApiKey`: 42 bytes
+  - `enterprise.appSecretKey`: 42 bytes
+  - `enterprise.adminAPIsSecretKeySalt`: 42 bytes
+  - `enterprise.passwordEncryptionKey`: 32 bytes (AES-256)
+- ✅ **TLS Consistency Check**: Automatically checks TLS configuration consistency with Ingress to avoid CORS issues
+- ✅ **RAG Integration**: Automatically handles RAG type and unstructured module relationships
+- ✅ **Interactive Guidance**: User-friendly CLI interface with detailed configuration for databases and Redis connections
+- ✅ **Progress Preservation**: Supports saving partial configuration after interruption
+
+## 🚀 Quick Start
+
+### Prerequisites
 
 - Python 3.6+
-- PyYAML 库
-- openssl（用于生成密钥，通常系统已自带）
-- ruamel.yaml（推荐）：用于保留 YAML 文件的格式、注释和引号
+- PyYAML library
+- `openssl` (usually pre-installed on systems)
+- `ruamel.yaml` (recommended): For preserving YAML file format, comments, and quotes
+- `helm` (optional, but recommended): For downloading values.yaml from Helm Chart repository. If not installed, the script will try to download from GitHub directly.
 
-### 安装依赖
+### Installation
 
-**使用 uv（推荐，更快）：**
+**Using uv (recommended, faster):**
 
 ```bash
-# 1. 安装 uv（如果未安装）
+# 1. Install uv (if not installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 2. 创建虚拟环境
+# 2. Create virtual environment
 uv venv
 
-# 3. 激活虚拟环境（可选，uv 会自动检测）
+# 3. Activate virtual environment (optional, uv auto-detects)
 source .venv/bin/activate
 
-# 4. 安装依赖
+# 4. Install dependencies
 uv pip install -r requirements.txt
 ```
 
-**或使用 pip：**
+**Or using pip:**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 使用方法
+### Usage
+
+**Basic usage (automatically downloads latest values.yaml):**
 
 ```bash
 python generate-values-prd.py
 ```
 
-脚本会引导你完成以下配置模块：
+**Specify a version:**
 
-1. **全局配置模块** - 影响所有服务
-2. **基础设施模块** - 数据库、存储、缓存（互斥选择）
-3. **服务模块** - 应用服务配置
-4. **网络模块** - Ingress配置
-5. **邮件模块** - 邮件服务配置
+```bash
+python generate-values-prd.py --version 3.6.0
+```
 
-生成的配置文件将保存为 `values-prd.yaml`。
+**Use local values.yaml:**
 
-## 📁 项目结构
+```bash
+python generate-values-prd.py --local
+```
+
+**Force re-download:**
+
+```bash
+python generate-values-prd.py --force-download
+```
+
+**Command-line options:**
+
+- `--version, -v`: Specify Helm Chart version (default: latest)
+- `--local, -l`: Use local values.yaml file (don't download)
+- `--force-download, -f`: Force re-download values.yaml (ignore cache)
+- `--repo-url`: Custom Helm Chart repository URL
+
+The script will automatically download `values.yaml` from the official Dify Helm Chart repository if it's not found locally. Downloaded files are cached in `.cache/` directory.
+
+The script will guide you through the following configuration modules:
+
+1. **Global Configuration** - Affects all services
+2. **Infrastructure Configuration** - Database, storage, cache (mutually exclusive choices)
+3. **Network Configuration** - Ingress configuration
+4. **Mail Configuration** - Email service configuration
+5. **Plugin Configuration** - Plugin connector image repository configuration
+6. **Service Configuration** - Application service configuration
+
+The generated configuration file will be saved as `values-prd.yaml`.
+
+## 📁 Project Structure
 
 ```
 .
-├── generate-values-prd.py    # 主脚本文件
-├── values.yaml               # 基础配置文件模板
-├── values-prd.yaml          # 生成的生产环境配置（gitignore）
-├── pyproject.toml           # Python 项目配置
-├── requirements.txt         # Python 依赖列表
-├── .gitignore              # Git 忽略文件配置
-└── docs/                   # 文档目录
-    ├── README-GENERATOR.md  # 详细使用说明
-    ├── MODULES.md          # 模块划分说明
-    ├── FLOWCHART.md        # 流程图
-    ├── KIND-NETWORKING.md  # Kind 网络配置说明
-    ├── IMPROVEMENTS.md     # 改进记录
-    └── CHANGELOG.md        # 更新日志
+├── generate-values-prd.py    # Main script file
+├── values.yaml               # Base configuration template
+├── values-prd.yaml          # Generated production config (gitignored)
+├── pyproject.toml           # Python project configuration
+├── requirements.txt         # Python dependencies
+├── LICENSE                  # MIT License
+├── CONTRIBUTING.md          # Contribution guidelines
+├── .gitignore              # Git ignore configuration
+└── docs/                   # Documentation directory
+    ├── README-GENERATOR.md  # Detailed usage guide
+    ├── MODULES.md          # Module structure and relationships
+    ├── FLOWCHART.md        # Configuration flowcharts
+    ├── KIND-NETWORKING.md  # Kind cluster networking guide
+    ├── IMPROVEMENTS.md     # Improvement records
+    └── CHANGELOG.md        # Changelog
 ```
 
-## 📚 文档
+## 📚 Documentation
 
-详细的文档请参考 `docs/` 目录：
+Detailed documentation is available in the `docs/` directory:
 
-- [README-GENERATOR.md](docs/README-GENERATOR.md) - 完整的使用说明和示例
-- [MODULES.md](docs/MODULES.md) - 模块划分与联动关系说明
-- [FLOWCHART.md](docs/FLOWCHART.md) - 配置流程图
-- [KIND-NETWORKING.md](docs/KIND-NETWORKING.md) - Kind 集群网络配置说明
+- [README-GENERATOR.md](docs/README-GENERATOR.md) - Complete usage guide and examples
+- [MODULES.md](docs/MODULES.md) - Module structure and relationship explanations
+- [FLOWCHART.md](docs/FLOWCHART.md) - Configuration flowcharts
+- [KIND-NETWORKING.md](docs/KIND-NETWORKING.md) - Kind cluster networking guide
 
-## 🔧 配置说明
+## 🔧 Configuration Modules
 
-### 模块划分
+### Module 1: Global Configuration
+- Affects all services
+- Includes keys, domains, RAG configuration, etc.
 
-1. **全局配置模块 (global)**
-   - 影响所有服务
-   - 包括密钥、域名、RAG配置等
+### Module 2: Infrastructure Configuration
+- Database selection (PostgreSQL/MySQL)
+- Storage selection (MinIO/S3/Azure Blob/etc.)
+- Cache selection (Redis)
+- Vector database selection (Qdrant/Weaviate/Milvus)
 
-2. **基础设施模块**
-   - 数据库选择（PostgreSQL/MySQL）
-   - 存储选择（MinIO/S3）
-   - 缓存选择（Redis）
+### Module 3: Network Configuration
+- Ingress configuration
+- TLS settings
+- Certificate management (cert-manager support)
 
-3. **服务模块**
-   - 应用服务配置
-   - 资源限制
-   - 副本数量
+### Module 4: Mail Configuration
+- SMTP server configuration
+- Resend service configuration
+- Email service settings
 
-4. **网络模块**
-   - Ingress配置
-   - TLS设置
+### Module 5: Plugin Configuration
+- Image repository type (Docker/ECR)
+- Authentication method (IRSA/K8s Secret)
+- Protocol selection (HTTPS/HTTP)
 
-5. **邮件模块**
-   - SMTP服务器配置
-   - 邮件服务设置
+### Module 6: Service Configuration
+- Enterprise license configuration
+- Service enable/disable toggles
+- Resource limits
 
-### 联动关系
+### Relationship Handling
 
-脚本会自动处理以下联动关系：
+The script automatically handles the following relationships:
 
-- **RAG联动**: `rag.etlType = "dify"` → `unstructured.enabled = false`
-- **RAG联动**: `rag.etlType = "Unstructured"` → `unstructured.enabled = true`
-- **TLS联动**: TLS配置与Ingress自动同步，避免CORS问题
-- **基础设施互斥**: 数据库、存储、缓存的选择互斥
+- **RAG Integration**: `rag.etlType = "dify"` → `unstructured.enabled = false`
+- **RAG Integration**: `rag.etlType = "Unstructured"` → `unstructured.enabled = true`
+- **TLS Consistency**: TLS configuration automatically syncs with Ingress to avoid CORS issues
+- **Infrastructure Mutex**: Database, storage, and cache selections are mutually exclusive
 
-## 🔒 安全注意事项
+## 🔒 Security
 
-- 生成的 `values-prd.yaml` 包含敏感信息，已添加到 `.gitignore`
-- `email-server.txt` 等敏感文件不会被提交到仓库
-- 所有密钥使用 `openssl` 自动生成，确保安全性
+- Generated `values-prd.yaml` contains sensitive information and is gitignored
+- Sensitive files like `email-server.txt` are excluded from the repository
+- All keys are generated using `openssl` for security
+- Supports IRSA (IAM Roles for Service Accounts) for AWS ECR authentication
 
-## 🤝 贡献
+## 🤝 Contributing
 
-欢迎提交 Issue 和 Pull Request！
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
-## 📝 许可证
+## 📝 License
 
-请查看项目根目录的 LICENSE 文件（如有）。
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 相关链接
+## 🔗 Related Links
 
-- [Dify 官方文档](https://docs.dify.ai/)
-- [Helm Chart 文档](https://helm.sh/docs/)
+- [Dify Official Documentation](https://docs.dify.ai/)
+- [Helm Chart Documentation](https://helm.sh/docs/)
+- [Dify Enterprise Documentation](https://enterprise-docs.dify.ai/)
 
+## 🙏 Acknowledgments
+
+- Built for [Dify](https://github.com/langgenius/dify) Enterprise Edition
+- Uses [ruamel.yaml](https://yaml.readthedocs.io/) for YAML processing

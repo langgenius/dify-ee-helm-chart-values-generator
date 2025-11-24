@@ -212,17 +212,17 @@ flowchart TD
     
     ECRRegion --> ECRAccount[配置ECR账户ID<br/>AWS Account ID]
     
-    ECRAccount --> ECRPrefix[配置镜像仓库前缀<br/>{account_id}.dkr.ecr.{region}.amazonaws.com/{prefix}]
+    ECRAccount --> ECRPrefix["配置镜像仓库前缀<br/>&#123;account_id&#125;.dkr.ecr.&#123;region&#125;.amazonaws.com/&#123;prefix&#125;"]
     
     ECRPrefix --> AuthMethod{ECR鉴权方式?}
-    DockerPrefix --> DockerSecret
+    DockerPrefix --> DockerSecret[配置imageRepoSecret<br/>参考容器镜像仓库文档]
     
     AuthMethod -->|IRSA模式| IRSAServiceAccount[配置ServiceAccount<br/>customServiceAccount<br/>runnerServiceAccount]
     AuthMethod -->|K8s Secret| ECRSecret[配置imageRepoSecret<br/>参考AWS文档]
     
     IRSAServiceAccount --> Protocol
     ECRSecret --> Protocol
-    DockerSecret[配置imageRepoSecret<br/>参考容器镜像仓库文档] --> Protocol
+    DockerSecret --> Protocol
     
     Protocol[选择协议类型<br/>HTTPS推荐/HTTP不推荐] --> End([模块5完成])
     
