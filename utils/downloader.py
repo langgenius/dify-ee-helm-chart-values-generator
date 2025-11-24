@@ -25,7 +25,7 @@ def get_helm_chart_versions(
 ) -> List[str]:
     """
     Get all available versions by directly downloading index.yaml
-    
+
     This function is used for displaying version list to users.
     It directly downloads index.yaml for faster and more reliable access.
 
@@ -75,7 +75,7 @@ def get_published_version(
 ) -> Optional[str]:
     """
     Get published version using Helm command
-    
+
     This function is used when downloading values.yaml for a specific version.
     It uses Helm command to ensure the version is actually published and available.
 
@@ -146,6 +146,84 @@ def get_published_version(
     return None
 
 
+def get_published_versions(
+    chart_name: Optional[str] = None,
+    repo_url: Optional[str] = None,
+    repo_name: Optional[str] = None
+) -> List[str]:
+    """
+    Get published versions using Helm command
+    
+    This function uses Helm command to get versions that are actually published and available.
+
+    Args:
+        chart_name: Chart name, defaults to config.HELM_CHART_NAME
+        repo_url: Helm Chart repository URL, defaults to config.HELM_REPO_URL
+        repo_name: Repository name, defaults to config.HELM_REPO_NAME
+
+    Returns:
+        List of published versions (sorted, latest first)
+    """
+    # Use global config defaults if not provided
+    chart_name = chart_name or config.HELM_CHART_NAME
+    repo_url = repo_url or config.HELM_REPO_URL
+    repo_name = repo_name or config.HELM_REPO_NAME
+
+    versions = []
+
+    try:
+        # Ensure repository is added
+        check_repo_cmd = ["helm", "repo", "list", "-o", "json"]
+        try:
+            repo_list = json.loads(subprocess.check_output(check_repo_cmd, stderr=subprocess.STDOUT).decode())
+            repos = [r.get("name", "") for r in repo_list]
+            if repo_name not in repos:
+                subprocess.check_call(
+                    ["helm", "repo", "add", repo_name, repo_url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE
+                )
+            subprocess.check_call(
+                ["helm", "repo", "update", repo_name],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE
+            )
+        except (subprocess.CalledProcessError, json.JSONDecodeError):
+            try:
+                subprocess.check_call(
+                    ["helm", "repo", "add", repo_name, repo_url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE
+                )
+                subprocess.check_call(
+                    ["helm", "repo", "update", repo_name],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE
+                )
+            except subprocess.CalledProcessError:
+                return []
+
+        # Get versions using helm search
+        versions_cmd = ["helm", "search", "repo", f"{repo_name}/{chart_name}", "--versions", "-o", "json"]
+        versions_output = subprocess.check_output(versions_cmd, stderr=subprocess.PIPE).decode()
+        versions_data = json.loads(versions_output)
+        if versions_data:
+            versions = [item.get("version", "") for item in versions_data if item.get("version")]
+    except Exception:
+        pass
+
+    # Sort versions (semantic versioning, latest first)
+    def version_key(v):
+        try:
+            parts = v.split('.')
+            return tuple(int(p) if p.isdigit() else 0 for p in parts)
+        except:
+            return (0, 0, 0)
+
+    versions = sorted(set(versions), key=version_key, reverse=True)
+    return versions
+
+
 def prompt_helm_chart_version(
     chart_name: Optional[str] = None,
     repo_url: Optional[str] = None,
@@ -167,8 +245,21 @@ def prompt_helm_chart_version(
     repo_url = repo_url or config.HELM_REPO_URL
     repo_name = repo_name or config.HELM_REPO_NAME
 
-    print_info(_t('fetching_available_versions'))
-    versions = get_helm_chart_versions(chart_name, repo_url, repo_name)
+    # Prompt user to choose version source
+    print_info("")
+    version_source = prompt_choice(
+        _t('select_version_source'),
+        [_t('published_versions'), _t('all_versions')],
+        default=_t('published_versions')
+    )
+
+    # Fetch versions based on user's choice
+    if version_source == _t('published_versions'):
+        print_info(_t('fetching_published_versions'))
+        versions = get_published_versions(chart_name, repo_url, repo_name)
+    else:
+        print_info(_t('fetching_available_versions'))
+        versions = get_helm_chart_versions(chart_name, repo_url, repo_name)
 
     if not versions:
         print_warning(_t('no_versions_found'))
