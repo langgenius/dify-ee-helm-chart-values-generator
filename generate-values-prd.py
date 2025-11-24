@@ -104,7 +104,7 @@ Examples:
     # Language selection
     if args.lang:
         set_language(args.lang)
-        else:
+    else:
         # Interactive language selection
         prompt_language_selection()
 
