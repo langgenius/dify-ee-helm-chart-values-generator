@@ -123,7 +123,7 @@ Examples:
         try:
             # If chart version is specified via CLI, don't prompt
             prompt_version = args.chart_version is None
-            
+
             # Get or download values.yaml (this will prompt for version if needed)
             source_file = get_or_download_values(
                 version=args.chart_version,
@@ -172,7 +172,7 @@ Examples:
     if not os.path.exists(source_file):
         print_error(f"{_t('file_not_found')}: {source_file}")
         sys.exit(1)
-    
+
     # Select Dify EE version
     if args.ee_version:
         ee_version = args.ee_version

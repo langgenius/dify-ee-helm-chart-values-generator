@@ -430,14 +430,14 @@ def download_and_extract_chart(
         print_info(_t('downloading_chart'))
         chart_ref = f"{repo_name}/{chart_name}"
         helm_cmd = ["helm", "pull", chart_ref, "--version", version, "--untar", "--untardir", str(extract_path.parent)]
-        
+
         try:
             subprocess.check_call(
                 helm_cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE
             )
-            
+
             # Helm pull --untar extracts to {chart_name}-{version} directory
             # We need to rename it to our desired directory name
             extracted_chart_dir = extract_path.parent / f"{chart_name}-{version}"
@@ -445,10 +445,10 @@ def download_and_extract_chart(
                 if extract_path.exists():
                     shutil.rmtree(extract_path)
                 extracted_chart_dir.rename(extract_path)
-            
+
             print_success(f"{_t('chart_extracted_to')}: {extract_path}")
             return str(extract_path)
-            
+
         except subprocess.CalledProcessError as e:
             print_error(f"{_t('chart_download_failed')}: {e}")
             return None
