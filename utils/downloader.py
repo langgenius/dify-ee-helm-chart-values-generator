@@ -300,7 +300,6 @@ def prompt_helm_chart_version(
             print_info(f"  {display_number}. {option} ({_t('recommended')}) [{_t('default')}]")
         else:
             print_info(f"  {display_number}. {option}")
-    print_info("")
 
     # Custom prompt for reverse numbering
     # Map reverse display numbers to actual option indices
@@ -429,20 +428,20 @@ def download_and_extract_chart(
         # Download chart using helm pull
         print_info(_t('downloading_chart'))
         chart_ref = f"{repo_name}/{chart_name}"
-        
+
         # Use a temporary directory for extraction, then move to final location
         import tempfile
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             helm_cmd = ["helm", "pull", chart_ref, "--version", version, "--untar", "--untardir", str(temp_path)]
-            
+
             try:
                 subprocess.check_call(
                     helm_cmd,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE
                 )
-                
+
                 # Helm pull --untar extracts to {chart_name}-{version} directory
                 extracted_chart_dir = temp_path / f"{chart_name}-{version}"
                 if extracted_chart_dir.exists():
@@ -456,7 +455,7 @@ def download_and_extract_chart(
                 else:
                     print_error(f"{_t('chart_extract_error')}: Extracted directory not found: {extracted_chart_dir}")
                     return None
-                
+
             except subprocess.CalledProcessError as e:
                 # Get stderr for better error message
                 try:
@@ -677,7 +676,7 @@ def get_or_download_values(
     # Download values.yaml
     print_info(_t('not_found_downloading'))
     source_file = download_values_from_helm_repo(version=selected_version, repo_url=repo_url, repo_name=repo_name)
-    
+
     # Extract actual version from downloaded file
     actual_version = selected_version
     if not actual_version:
@@ -685,6 +684,6 @@ def get_or_download_values(
         match = re.search(r'values-([\d.]+(?:-[a-zA-Z0-9.]+)?)\.yaml', source_file)
         if match:
             actual_version = match.group(1)
-    
+
     return source_file, actual_version
 
