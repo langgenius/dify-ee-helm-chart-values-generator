@@ -123,6 +123,8 @@ Examples:
         try:
             # If chart version is specified via CLI, don't prompt
             prompt_version = args.chart_version is None
+            
+            # Get or download values.yaml (this will prompt for version if needed)
             source_file = get_or_download_values(
                 version=args.chart_version,
                 force_download=args.force_download,
@@ -131,7 +133,7 @@ Examples:
                 repo_name=args.repo_name
             )
 
-            # Download and extract Helm Chart
+            # Extract version from source_file path or use provided version
             chart_version = args.chart_version
             if not chart_version:
                 # Extract version from source_file path if it's cached
@@ -144,7 +146,9 @@ Examples:
                     from utils.downloader import get_published_version
                     chart_version = get_published_version(repo_url=args.repo_url, repo_name=args.repo_name)
 
+            # Download and extract Helm Chart
             if chart_version:
+                print_info("")
                 chart_dir = download_and_extract_chart(
                     version=chart_version,
                     repo_url=args.repo_url,
