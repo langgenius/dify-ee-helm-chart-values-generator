@@ -6,6 +6,7 @@ from utils import (
 )
 from version_manager import VersionManager
 from i18n import get_translator
+from modules.features import apply_features
 
 _t = get_translator()
 
@@ -95,3 +96,7 @@ def configure_services(generator):
 
     # Note: unstructured.enabled is automatically configured in global_config based on RAG etlType
     # No need to configure service enablement here
+
+    # Apply version-specific features for services module
+    # Features are automatically discovered based on chart_version
+    apply_features(generator, "services")

@@ -6,6 +6,7 @@ from utils import (
 )
 from version_manager import VersionManager
 from i18n import get_translator
+from modules.features import apply_features
 
 _t = get_translator()
 
@@ -555,5 +556,23 @@ def configure_infrastructure(generator):
             default="minioadmin",
             required=False
         )
+
+    # Advanced SSRF Proxy configuration
+    print_section(_t('advanced_config'))
+    if prompt_yes_no(_t('config_advanced_options'), default=False):
+        # ssrfProxy.sandboxHost
+        print_info(_t('ssrf_proxy_sandbox_host_desc'))
+        sandbox_host = prompt(
+            _t('ssrf_proxy_sandbox_host'),
+            default="",
+            required=False
+        )
+        if sandbox_host:
+            if 'ssrfProxy' not in generator.values:
+                generator.values['ssrfProxy'] = {}
+            generator.values['ssrfProxy']['sandboxHost'] = sandbox_host
+
+    # Apply version-specific features for infrastructure module
+    apply_features(generator, "infrastructure")
 
     # ==================== 模块 3: 网络配置 ====================

@@ -6,6 +6,8 @@ from utils import (
 )
 from version_manager import VersionManager
 from i18n import get_translator
+from modules.features import apply_features
+from modules.features.base import version_satisfies
 
 _t = get_translator()
 
@@ -74,6 +76,16 @@ def configure_global(generator):
         required=False
     )
 
+    # Trigger domain (3.7.0+)
+    chart_version = getattr(generator, 'chart_version', None)
+    if chart_version and version_satisfies(chart_version, "3.7.0"):
+        print_info(_t('trigger_domain_desc'))
+        generator.values['global']['triggerDomain'] = prompt(
+            _t('trigger_domain'),
+            default="trigger.dify.local",
+            required=False
+        )
+
     # Database migration
     generator.values['global']['dbMigrationEnabled'] = prompt_yes_no(
         _t('enable_db_migration'),
@@ -132,4 +144,6 @@ def configure_global(generator):
     except ValueError:
         print_warning(f"{_t('invalid_number_use_default')} 4000")
 
-    # ==================== 模块 2: 基础设施配置 ====================
+    # Apply version-specific features for global module
+    # Features are automatically discovered based on chart_version
+    apply_features(generator, "global")
