@@ -254,6 +254,12 @@ TRANSLATIONS = {
         'minio_root_password': 'MinIO Root Password',
         'minio_root_user': 'MinIO Root User',
 
+        # Advanced configuration
+        'advanced_config': 'Advanced Configuration',
+        'config_advanced_options': 'Configure advanced options? (for special deployment scenarios)',
+        'ssrf_proxy_sandbox_host': 'SSRF Proxy Sandbox Host (leave empty for default)',
+        'ssrf_proxy_sandbox_host_desc': 'Custom sandbox host FQDN for cross-namespace deployments (e.g.: my-release-dify-sandbox-svc.my-namespace.svc.cluster.local)',
+
         'select_mail_service_type': 'Select Mail Service Type',
         'default_sender_address': 'Default Sender Address (e.g.: no-reply <no-reply@dify.ai>)',
         'resend_api_key': 'Resend API Key',
@@ -357,6 +363,59 @@ TRANSLATIONS = {
         'http_not_recommended_option': 'HTTP (Not Recommended, Fallback Only)',
         'http_selected': 'HTTP protocol selected (not recommended)',
         'https_selected': 'HTTPS protocol selected (recommended)',
+
+        # Version-specific features
+        'applying_feature': 'Applying version-specific feature',
+        'trigger_domain_desc': 'Trigger domain is used for workflow webhook triggers (3.7.0+)',
+        'trigger_domain': 'Trigger Domain (for workflow webhooks)',
+
+        # Trigger Worker Feature (3.7.0+)
+        'trigger_worker_config': 'Trigger Worker Configuration (3.7.0+)',
+        'trigger_worker_desc': 'Trigger Worker is a dedicated Celery worker for handling workflow triggers',
+        'config_trigger_worker': 'Configure Trigger Worker settings?',
+        'using_default_trigger_worker': 'Using default Trigger Worker settings',
+        'trigger_worker_replicas': 'Trigger Worker Replicas',
+        'trigger_worker_celery_amount': 'Celery Worker Amount',
+        'trigger_worker_code_limits_desc': 'Code execution limits control sandbox execution parameters',
+        'config_trigger_worker_code_limits': 'Configure code execution limits?',
+        'max_string_array_length': 'Max String Array Length',
+        'max_object_array_length': 'Max Object Array Length',
+        'max_number_array_length': 'Max Number Array Length',
+        'trigger_worker_configured': 'Trigger Worker configured successfully',
+
+        # Plugin Metric Feature (3.7.0+)
+        'plugin_metric_config': 'Plugin Metrics Configuration (3.7.0+)',
+        'plugin_metric_desc': 'Plugin metrics monitoring for CPU, memory, and network I/O',
+        'config_plugin_metric': 'Configure plugin metrics?',
+        'using_default_plugin_metric': 'Using default plugin metrics settings (disabled)',
+        'plugin_metric_source_options': 'Available metric sources:',
+        'plugin_metric_disabled_desc': 'No metrics collected',
+        'plugin_metric_cadvisor_desc': 'Collect from cadvisor (requires cluster roles)',
+        'plugin_metric_prometheus_desc': 'Query from external Prometheus (recommended)',
+        'plugin_metric_source': 'Metric Source',
+        'cadvisor_cluster_role_warning': 'Warning: cadvisor requires cluster roles for reading nodes',
+        'config_cadvisor_scrape': 'Configure cadvisor scrape settings?',
+        'scrape_interval': 'Scrape Interval (e.g., 20s)',
+        'scrape_timeout': 'Scrape Timeout (e.g., 10s)',
+        'retain_period': 'Retain Period (e.g., 604800s)',
+        'prometheus_external_required': 'Note: prometheus source requires externalPrometheus to be enabled',
+        'prometheus_config_in_infrastructure': 'External Prometheus will be configured in infrastructure module',
+        'plugin_metric_configured': 'Plugin metrics configured successfully',
+
+        # External Prometheus Feature (3.7.0+)
+        'external_prometheus_config': 'External Prometheus Configuration (3.7.0+)',
+        'external_prometheus_desc': 'External Prometheus for plugin metrics monitoring',
+        'enable_external_prometheus': 'Enable External Prometheus?',
+        'external_prometheus_disabled': 'External Prometheus disabled',
+        'external_prometheus_endpoint_desc': 'Prometheus endpoint for querying metrics',
+        'prometheus_endpoint': 'Prometheus Endpoint URL',
+        'prometheus_timeout': 'Query Timeout (e.g., 10s)',
+        'prometheus_auth_required': 'Prometheus requires authentication?',
+        'prometheus_username': 'Prometheus Username',
+        'prometheus_password': 'Prometheus Password',
+        'prometheus_insecure': 'Skip TLS verification?',
+        'prometheus_insecure_warning': 'Warning: TLS verification disabled, not recommended for production',
+        'external_prometheus_configured': 'External Prometheus configured successfully',
 
     },
     'zh': {
@@ -733,6 +792,12 @@ TRANSLATIONS = {
         'minio_root_password': 'MinIO root 密码',
         'minio_root_user': 'MinIO root 用户',
 
+        # Advanced configuration
+        'advanced_config': '高级配置',
+        'config_advanced_options': '是否配置高级选项？(用于特殊部署场景)',
+        'ssrf_proxy_sandbox_host': 'SSRF 代理 Sandbox 主机 (留空使用默认值)',
+        'ssrf_proxy_sandbox_host_desc': '自定义 sandbox 主机 FQDN，用于跨命名空间部署 (例如: my-release-dify-sandbox-svc.my-namespace.svc.cluster.local)',
+
         'select_mail_service_type': '选择邮件服务类型',
         'default_sender_address': '默认发件人地址 (例如: no-reply <no-reply@dify.ai>)',
         'resend_api_key': 'Resend API Key',
@@ -836,6 +901,59 @@ TRANSLATIONS = {
         'http_not_recommended_option': 'HTTP (不推荐，仅备选)',
         'http_selected': '已选择 HTTP 协议（不推荐）',
         'https_selected': '已选择 HTTPS 协议（推荐）',
+
+        # Version-specific features
+        'applying_feature': '正在应用版本特性',
+        'trigger_domain_desc': 'Trigger Domain 用于工作流 Webhook 触发器 (3.7.0+)',
+        'trigger_domain': 'Trigger Domain (工作流 Webhook 触发器)',
+
+        # Trigger Worker Feature (3.7.0+)
+        'trigger_worker_config': 'Trigger Worker 配置 (3.7.0+)',
+        'trigger_worker_desc': 'Trigger Worker 是专用于处理工作流触发器的 Celery Worker',
+        'config_trigger_worker': '是否配置 Trigger Worker 设置？',
+        'using_default_trigger_worker': '使用默认 Trigger Worker 设置',
+        'trigger_worker_replicas': 'Trigger Worker 副本数',
+        'trigger_worker_celery_amount': 'Celery Worker 数量',
+        'trigger_worker_code_limits_desc': '代码执行限制控制沙箱执行参数',
+        'config_trigger_worker_code_limits': '是否配置代码执行限制？',
+        'max_string_array_length': '最大字符串数组长度',
+        'max_object_array_length': '最大对象数组长度',
+        'max_number_array_length': '最大数字数组长度',
+        'trigger_worker_configured': 'Trigger Worker 配置成功',
+
+        # Plugin Metric Feature (3.7.0+)
+        'plugin_metric_config': '插件指标监控配置 (3.7.0+)',
+        'plugin_metric_desc': '插件资源监控：CPU、内存、网络 I/O',
+        'config_plugin_metric': '是否配置插件指标监控？',
+        'using_default_plugin_metric': '使用默认插件指标设置（已禁用）',
+        'plugin_metric_source_options': '可用的指标来源：',
+        'plugin_metric_disabled_desc': '不收集指标',
+        'plugin_metric_cadvisor_desc': '从 cadvisor 收集（需要集群角色）',
+        'plugin_metric_prometheus_desc': '从外部 Prometheus 查询（推荐）',
+        'plugin_metric_source': '指标来源',
+        'cadvisor_cluster_role_warning': '警告：cadvisor 需要读取节点的集群角色权限',
+        'config_cadvisor_scrape': '是否配置 cadvisor 抓取设置？',
+        'scrape_interval': '抓取间隔（如 20s）',
+        'scrape_timeout': '抓取超时（如 10s）',
+        'retain_period': '保留周期（如 604800s）',
+        'prometheus_external_required': '注意：prometheus 来源需要启用 externalPrometheus',
+        'prometheus_config_in_infrastructure': '外部 Prometheus 将在基础设施模块中配置',
+        'plugin_metric_configured': '插件指标监控配置成功',
+
+        # External Prometheus Feature (3.7.0+)
+        'external_prometheus_config': '外部 Prometheus 配置 (3.7.0+)',
+        'external_prometheus_desc': '用于插件指标监控的外部 Prometheus',
+        'enable_external_prometheus': '是否启用外部 Prometheus？',
+        'external_prometheus_disabled': '外部 Prometheus 已禁用',
+        'external_prometheus_endpoint_desc': '用于查询指标的 Prometheus 端点',
+        'prometheus_endpoint': 'Prometheus 端点 URL',
+        'prometheus_timeout': '查询超时（如 10s）',
+        'prometheus_auth_required': 'Prometheus 是否需要认证？',
+        'prometheus_username': 'Prometheus 用户名',
+        'prometheus_password': 'Prometheus 密码',
+        'prometheus_insecure': '是否跳过 TLS 验证？',
+        'prometheus_insecure_warning': '警告：已禁用 TLS 验证，不建议在生产环境使用',
+        'external_prometheus_configured': '外部 Prometheus 配置成功',
 
     }
 }

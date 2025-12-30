@@ -6,6 +6,7 @@ from utils import (
 )
 from version_manager import VersionManager
 from i18n import get_translator
+from modules.features import apply_features
 
 _t = get_translator()
 
@@ -194,4 +195,8 @@ def configure_plugins(generator):
         print_warning(_t('http_selected'))
     else:
         print_success(_t('https_selected'))
+
+    # Apply version-specific features for plugins module
+    # Features are automatically discovered based on chart_version
+    apply_features(generator, "plugins")
 

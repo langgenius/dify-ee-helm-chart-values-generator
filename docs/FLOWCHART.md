@@ -1,5 +1,114 @@
 # Dify EE（企业版）Helm Chart Values 生成器流程图
 
+## 版本特性架构（Feature-based Architecture）
+
+从 3.7.0 版本开始，我们采用了 **特性驱动 + 版本检测** 的混合架构来处理不同版本之间的配置差异。
+
+### 架构图
+
+```mermaid
+flowchart TD
+    subgraph VersionManager["版本管理器"]
+        VM[VersionManager] --> |解析版本| ParseVersion["parse_version()"]
+        VM --> |比较版本| CompareVersion["compare_versions()"]
+        VM --> |检查约束| VersionSatisfies["version_satisfies()"]
+    end
+
+    subgraph FeatureSystem["特性系统 (modules/features/)"]
+        FR[FeatureRegistry] --> |注册| Register["register_feature()"]
+        FR --> |发现| Discover["_discover_features()"]
+        FR --> |应用| Apply["apply_features()"]
+        
+        subgraph Features["版本特性模块"]
+            F1["trigger_domain.py<br/>≥3.7.0, global"]
+            F2["trigger_worker.py<br/>≥3.7.0, services"]
+            F3["plugin_metric.py<br/>≥3.7.0, plugins"]
+            F4["external_prometheus.py<br/>≥3.7.0, infrastructure"]
+        end
+        
+        Register --> Features
+    end
+
+    subgraph Modules["配置模块 (modules/)"]
+        M1["global_config.py"]
+        M2["networking.py"]
+        M3["plugins.py"]
+        M4["services.py"]
+    end
+
+    Generator["ValuesGenerator"] --> |chart_version| VM
+    Generator --> Modules
+    Modules --> |调用| Apply
+    Apply --> |查询适用特性| FR
+    FR --> |版本匹配| VersionSatisfies
+    VersionSatisfies --> |返回匹配特性| Features
+    Features --> |配置| Generator
+
+    style FeatureSystem fill:#E6FFE6
+    style VersionManager fill:#E6F3FF
+    style Features fill:#FFF4E6
+```
+
+### 目录结构
+
+```
+modules/
+├── __init__.py
+├── global_config.py          # 核心配置（所有版本通用）
+├── infrastructure.py
+├── networking.py
+├── mail.py
+├── plugins.py
+├── services.py
+└── features/                  # 版本特定特性
+    ├── __init__.py           # 自动发现机制
+    ├── base.py               # Feature基类、注册器、版本比较
+    ├── trigger_domain.py     # 3.7.0+ triggerDomain 配置
+    ├── trigger_worker.py     # 3.7.0+ triggerWorker 服务
+    ├── plugin_metric.py      # 3.7.0+ 插件指标监控
+    └── external_prometheus.py # 3.7.0+ 外部 Prometheus
+```
+
+### 工作原理
+
+1. **启动时自动发现**：`modules/features/__init__.py` 自动扫描并导入所有特性模块
+2. **装饰器注册**：每个特性使用 `@register_feature()` 装饰器声明版本约束
+3. **配置时应用**：各模块末尾调用 `apply_features(generator, "module_name")`
+4. **版本过滤**：只有满足版本约束的特性才会被执行
+
+### 添加新特性示例
+
+```python
+# modules/features/new_feature.py
+from .base import Feature, register_feature
+from utils import print_section, prompt
+from i18n import get_translator
+
+@register_feature(
+    min_version="3.8.0",      # 最小版本（含）
+    max_version=None,          # 最大版本（含），None表示无上限
+    module="global",           # 所属模块
+    name="New Feature",
+    description="Description of the feature"
+)
+class NewFeature(Feature):
+    def configure(self, generator) -> None:
+        _t = get_translator()
+        # 配置逻辑...
+        generator.values['global']['newField'] = "value"
+```
+
+### 版本比较规则
+
+```
+3.6.0-alpha.1 < 3.6.0-beta.1 < 3.6.0-rc.1 < 3.6.0 < 3.7.0
+```
+
+- 预发布版本（alpha < beta < rc）优先级低于正式版本
+- 支持语义化版本比较
+
+---
+
 ## 主流程图
 
 ```mermaid
@@ -56,13 +165,26 @@ flowchart TD
     
     RAGConfig[配置RAG参数<br/>keywordDataSourceType<br/>topKMaxValue<br/>indexingMaxSegmentationTokensLength]
     
-    RAGConfig --> End([模块1完成])
+    RAGConfig --> ApplyFeatures{应用版本特性}
+    
+    ApplyFeatures --> CheckVersion{chart_version<br/>≥ 3.7.0?}
+    CheckVersion -->|是| TriggerDomain[配置 triggerDomain<br/>工作流 Webhook 触发器域名]
+    CheckVersion -->|否| End
+    TriggerDomain --> CheckFuture{更多版本特性?}
+    CheckFuture -->|有| ApplyMore[应用其他特性...]
+    CheckFuture -->|无| End
+    ApplyMore --> End
+    
+    End([模块1完成])
     
     style Start fill:#E6F3FF
     style End fill:#E6F3FF
     style RAGCheck fill:#FFF4E6
     style DisableUnstructured fill:#FFE6E6
     style EnableUnstructured fill:#E6FFE6
+    style ApplyFeatures fill:#E6FFE6
+    style TriggerDomain fill:#90EE90
+    style CheckVersion fill:#FFF4E6
 ```
 
 ## 模块2: 基础设施配置流程图
@@ -327,6 +449,16 @@ flowchart TD
 ```
 
 ## 决策点说明
+
+### 版本特性对照表
+
+| 特性名称 | 最低版本 | 所属模块 | 说明 |
+|---------|---------|---------|------|
+| `triggerDomain` | 3.7.0 | global | 工作流 Webhook 触发器域名配置 |
+| `triggerWorker` | 3.7.0 | services | Trigger Worker 服务配置（副本数、Celery、代码限制） |
+| `plugin_manager.metric` | 3.7.0 | plugins | 插件资源监控配置（CPU、内存、网络 I/O） |
+| `externalPrometheus` | 3.7.0 | infrastructure | 外部 Prometheus 配置（用于插件指标监控） |
+| `ssrfProxy.sandboxHost` | 3.6.x | infrastructure (高级选项) | 自定义 sandbox 主机 FQDN（用于跨命名空间部署） |
 
 ### 关键决策点
 
