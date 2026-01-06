@@ -97,14 +97,8 @@ jobs:
         run: |
           echo "Running feature tests..."
           python test_features.py
-      - name: Run services tests
-        run: |
-          echo "Running services tests..."
-          python test_services.py
-      - name: Run S3 config tests
-        run: |
-          echo "Running S3 config tests..."
-          python test_s3_config.py
+      # Note: test_services.py and test_s3_config.py require interactive input
+      # They will be enabled after implementing --ci mode (see docs/CI-INTEGRATION-PLAN.md)
 
   shell-check:
     runs-on: ubuntu-latest
