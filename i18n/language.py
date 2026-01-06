@@ -3,12 +3,19 @@
 import sys
 from utils import Colors, print_header, print_info, print_success, print_error
 from .translations import set_language, get_language, Translations
+import config
 
 _t = Translations.get
 
 
 def prompt_language_selection() -> str:
-    """Prompt user to select language"""
+    """Prompt user to select language. In CI mode, defaults to English."""
+    # CI mode: use English without prompting
+    if config.is_ci_mode():
+        set_language('en')
+        print_info("[CI] Language set to: English")
+        return 'en'
+
     print_header(_t('select_language', language='en'))
 
     languages = [

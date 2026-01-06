@@ -25,3 +25,21 @@ DOWNLOAD_TIMEOUT = 10
 DEFAULT_CHART_VERSION = None  # None means latest
 DEFAULT_EE_VERSION = None  # None means interactive selection
 
+# CI Mode Configuration
+class _Config:
+    """Internal configuration state"""
+    ci_mode: bool = False
+
+
+_config = _Config()
+
+
+def set_ci_mode(enabled: bool = True):
+    """Enable or disable CI mode globally"""
+    _config.ci_mode = enabled
+
+
+def is_ci_mode() -> bool:
+    """Check if CI mode is enabled"""
+    return _config.ci_mode
+

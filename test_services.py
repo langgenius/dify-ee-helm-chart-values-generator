@@ -6,6 +6,11 @@ Test Module 6: Service Configuration
 
 import os
 import sys
+
+# Enable CI mode for non-interactive testing
+import config
+config.set_ci_mode(True)
+
 from i18n import set_language, get_translator
 from i18n.language import prompt_language_selection
 from generator import ValuesGenerator
@@ -17,7 +22,7 @@ def test_services_module():
     print("Test Module 6: Service Configuration")
     print("=" * 60)
     
-    # Language selection
+    # Language selection (will use English in CI mode)
     prompt_language_selection()
     _t = get_translator()
     

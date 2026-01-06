@@ -77,7 +77,7 @@ jobs:
               'modules.features.plugin_metric',
               'modules.features.trigger_worker',
           ]
-          
+
           failed = []
           for module in modules:
               try:
@@ -86,7 +86,7 @@ jobs:
               except Exception as e:
                   print(f'✗ {module}: {e}')
                   failed.append(module)
-          
+
           if failed:
               print(f'\n❌ Failed to import {len(failed)} module(s)')
               sys.exit(1)
@@ -97,8 +97,9 @@ jobs:
         run: |
           echo "Running feature tests..."
           python test_features.py
-      # Note: test_services.py and test_s3_config.py require interactive input
-      # They will be enabled after implementing --ci mode (see docs/CI-INTEGRATION-PLAN.md)
+      # Note: test_services.py and test_s3_config.py require values.yaml
+      # They are not included in CI until integration tests are implemented
+      # See docs/CI-INTEGRATION-PLAN.md for the full plan
 
   shell-check:
     runs-on: ubuntu-latest
