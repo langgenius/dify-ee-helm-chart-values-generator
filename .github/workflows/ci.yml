@@ -10,11 +10,11 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -27,7 +27,7 @@ jobs:
   check-format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Check file endings
         run: |
           if [ "$(file generate-values-prd.py | grep -o 'CRLF')" = "CRLF" ]; then
@@ -35,3 +35,84 @@ jobs:
             exit 1
           fi
 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Validate module imports
+        run: |
+          echo "Validating Python module imports..."
+          python -c "
+          import sys
+          modules = [
+              'config',
+              'generator',
+              'version_manager',
+              'i18n',
+              'i18n.language',
+              'i18n.translations',
+              'utils',
+              'utils.colors',
+              'utils.downloader',
+              'utils.prompts',
+              'utils.secrets',
+              'modules',
+              'modules.global_config',
+              'modules.infrastructure',
+              'modules.mail',
+              'modules.networking',
+              'modules.plugins',
+              'modules.services',
+              'modules.features',
+              'modules.features.base',
+              'modules.features.external_prometheus',
+              'modules.features.plugin_metric',
+              'modules.features.trigger_worker',
+          ]
+          
+          failed = []
+          for module in modules:
+              try:
+                  __import__(module)
+                  print(f'✓ {module}')
+              except Exception as e:
+                  print(f'✗ {module}: {e}')
+                  failed.append(module)
+          
+          if failed:
+              print(f'\n❌ Failed to import {len(failed)} module(s)')
+              sys.exit(1)
+          else:
+              print(f'\n✅ All {len(modules)} modules imported successfully')
+          "
+      - name: Run feature tests
+        run: |
+          echo "Running feature tests..."
+          python test_features.py
+      - name: Run services tests
+        run: |
+          echo "Running services tests..."
+          python test_services.py
+      - name: Run S3 config tests
+        run: |
+          echo "Running S3 config tests..."
+          python test_s3_config.py
+
+  shell-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+      - name: Run shellcheck
+        run: |
+          echo "Checking shell scripts..."
+          shellcheck generate-image-repo-secret.sh || echo "::warning::shellcheck found issues"
