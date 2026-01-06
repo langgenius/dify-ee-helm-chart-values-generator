@@ -120,8 +120,9 @@ python generate-values-prd.py --lang zh
 
 ```
 .
-├── generate-values-prd.py    # 主脚本文件
-├── values.yaml               # 基础配置文件模板（自动从 Helm Chart 仓库下载）
+├── generate-values-prd.py       # 主脚本文件
+├── generate-image-repo-secret.sh # Docker 镜像仓库密钥生成器
+├── values.yaml                  # 基础配置文件模板（自动从 Helm Chart 仓库下载）
 ├── values-prd.yaml          # 生成的生产环境配置（gitignore）
 ├── .cache/                  # 缓存目录（存储下载的 values.yaml）
 ├── pyproject.toml           # Python 项目配置
@@ -187,6 +188,22 @@ python generate-values-prd.py --lang zh
 - **RAG 联动**: `rag.etlType = "Unstructured"` → `unstructured.enabled = true`
 - **TLS 联动**: TLS 配置与 Ingress 自动同步，避免 CORS 问题
 - **基础设施互斥**: 数据库、存储、缓存的选择互斥
+
+## 🔐 Docker 镜像仓库密钥
+
+如果你使用私有 Docker 镜像仓库（例如 Dify EE 镜像），可以使用提供的脚本创建 imagePullSecret：
+
+```bash
+./generate-image-repo-secret.sh
+```
+
+脚本会交互式地提示你输入：
+- Docker Registry 用户名
+- Docker Registry 密码
+- Kubernetes 命名空间（默认：`default`）
+- Registry 地址（默认：`https://index.docker.io/v1/`）
+
+脚本会创建一个名为 `image-repo-secret` 的 Kubernetes secret，可以在 Helm values 中引用。
 
 ## 🔒 安全注意事项
 

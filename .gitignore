@@ -45,10 +45,16 @@ values-*.yaml
 
 # Sensitive files
 email-server.txt
-*password*
-*secret*
+*password*.txt
+*password*.yaml
+*.secret
+*.secret.*
+*-secret.yaml
+*-secret.json
 *.key
 *.pem
+.env.local
+.env.*.local
 
 # Temporary files
 *.tmp
