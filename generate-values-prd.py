@@ -91,8 +91,18 @@ Examples:
         default=config.HELM_REPO_NAME,
         help=f"Helm repository name (default: {config.HELM_REPO_NAME})"
     )
+    parser.add_argument(
+        "--ci", "--non-interactive",
+        action="store_true",
+        dest="ci_mode",
+        help="CI mode: use default values for all prompts (non-interactive)"
+    )
 
     args = parser.parse_args()
+
+    # Enable CI mode if requested
+    if args.ci_mode:
+        config.set_ci_mode(True)
 
     # Language selection
     if args.lang:

@@ -246,6 +246,16 @@ def prompt_helm_chart_version(
     repo_url = repo_url or config.HELM_REPO_URL
     repo_name = repo_name or config.HELM_REPO_NAME
 
+    # CI mode: return latest version without prompting
+    if config.is_ci_mode():
+        print_info("[CI] Fetching latest version...")
+        versions = get_published_versions(chart_name, repo_url, repo_name)
+        if versions:
+            latest = versions[0]
+            print_info(f"[CI] Using latest version: {latest}")
+            return latest
+        return None
+
     # Prompt user to choose version source
     print_info("")
     version_source = prompt_choice(

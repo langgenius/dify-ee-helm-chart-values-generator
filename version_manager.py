@@ -3,6 +3,7 @@
 import sys
 from typing import Dict, Any, Optional
 
+import config
 from utils import Colors, print_header, print_info, print_success, print_error, print_warning
 from i18n import get_translator
 
@@ -55,9 +56,9 @@ class VersionManager:
     @classmethod
     def get_version_modules(cls, version: str) -> list:
         """Get list of modules supported by version"""
-        config = cls.get_version_info(version)
-        if config:
-            return config.get("modules", [])
+        version_cfg = cls.get_version_info(version)
+        if version_cfg:
+            return version_cfg.get("modules", [])
         return []
 
     @classmethod
@@ -68,19 +69,27 @@ class VersionManager:
 
     @classmethod
     def prompt_version_selection(cls) -> str:
-        """Interactive version selection"""
+        """Interactive version selection. In CI mode, returns first (latest) version."""
+        versions = cls.get_available_versions()
+
+        # CI mode: return first version without prompting
+        if config.is_ci_mode():
+            first_version = versions[0] if versions else "3.x"
+            version_config = cls.get_version_info(first_version)
+            print_info(f"[CI] Using version: {version_config.get('name', first_version)}")
+            return first_version
+
         print_header(_t('select_dify_version'))
         print_info(_t('select_version_prompt'))
         print()
 
-        versions = cls.get_available_versions()
         version_options = []
 
         for i, version in enumerate(versions, 1):
-            config = cls.get_version_info(version)
-            name = config.get("name", f"Version {version}")
-            desc = config.get("description", "")
-            modules = config.get("modules", [])
+            version_cfg = cls.get_version_info(version)
+            name = version_cfg.get("name", f"Version {version}")
+            desc = version_cfg.get("description", "")
+            modules = version_cfg.get("modules", [])
 
             print(f"  {i}. {name}")
             print(f"     {_t('version')}: {version}")
@@ -102,8 +111,8 @@ class VersionManager:
                 idx = int(choice) - 1
                 if 0 <= idx < len(versions):
                     selected_version = version_options[idx]
-                    config = cls.get_version_info(selected_version)
-                    print_success(f"{_t('selected')}: {config.get('name', selected_version)}")
+                    version_cfg = cls.get_version_info(selected_version)
+                    print_success(f"{_t('selected')}: {version_cfg.get('name', selected_version)}")
                     return selected_version
                 else:
                     range_text = _t('enter_number_range')

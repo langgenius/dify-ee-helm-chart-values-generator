@@ -7,6 +7,10 @@ import sys
 import os
 import importlib.util
 
+# Enable CI mode for non-interactive testing
+import config
+config.set_ci_mode(True)
+
 # 加载 generate-values-prd.py 模块
 spec = importlib.util.spec_from_file_location("generate_values_prd", "generate-values-prd.py")
 generate_values_prd = importlib.util.module_from_spec(spec)

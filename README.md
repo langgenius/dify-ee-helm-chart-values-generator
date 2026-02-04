@@ -112,8 +112,9 @@ The generated configuration file will be saved as `out/values-prd-{version}.yaml
 
 ```
 .
-├── generate-values-prd.py    # Main script file
-├── generator.py              # Core generator class
+├── generate-values-prd.py       # Main script file
+├── generate-image-repo-secret.sh # Docker registry secret generator
+├── generator.py                 # Core generator class
 ├── version_manager.py        # Version management
 ├── config.py                 # Configuration constants
 ├── pyproject.toml           # Python project configuration
@@ -183,6 +184,22 @@ The script automatically handles the following relationships:
 - **RAG Integration**: `rag.etlType = "Unstructured"` → `unstructured.enabled = true`
 - **TLS Consistency**: TLS configuration automatically syncs with Ingress to avoid CORS issues
 - **Infrastructure Mutex**: Database, storage, and cache selections are mutually exclusive
+
+## 🔐 Docker Registry Secret
+
+If you're using a private Docker registry (e.g., for Dify EE images), you can use the provided script to create an imagePullSecret:
+
+```bash
+./generate-image-repo-secret.sh
+```
+
+The script will interactively prompt you for:
+- Docker Registry username
+- Docker Registry password
+- Kubernetes namespace (default: `default`)
+- Registry URL (default: `https://index.docker.io/v1/`)
+
+It creates a Kubernetes secret named `image-repo-secret` that can be referenced in your Helm values.
 
 ## 🔒 Security
 
